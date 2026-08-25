@@ -13,6 +13,7 @@ import { APP_CONFIG } from './config.js';
 import { spinNumber, resolveRound, betInfo, money, colorOf, COLOR_LABEL } from './roulette.js';
 import { store, loadSettings, saveSettings } from './storage.js';
 import { createLedger } from './bets.js';
+import { GAMES, THEMES, DEFAULT_THEME, themeById, safeThemeId } from './catalog.js';
 import { buildBoard, renderBoardChips, highlightWinner, clearHighlight, renderLastNumbers } from './table.js';
 import { createWheel } from './wheel.js';
 import { sound } from './sound.js';
@@ -25,8 +26,8 @@ const SPIN_DURATION = { fast: 4200, normal: 6400, cinematic: 8600 };
 
 /* ----- Gratis-Bonus im Shop: hier die beiden Zahlen anpassen ----- */
 const BONUS = {
-  amount: 10000,        // wie viel es pro Abholung gibt
-  intervalMinutes: 15   // wie lange man danach warten muss
+  amount: 10000,      // wie viel es pro Abholung gibt
+  intervalHours: 24   // wie lange man danach warten muss
 };
 
 /**
@@ -367,7 +368,7 @@ function applyCustomChip() {
 /* Gratis-Bonus im Shop                                                  */
 /* ==================================================================== */
 
-const BONUS_INTERVAL_MS = BONUS.intervalMinutes * 60 * 1000;
+const BONUS_INTERVAL_MS = BONUS.intervalHours * 60 * 60 * 1000;
 
 /** Millisekunden bis zur nächsten Abholung (0 = jetzt abholbar). */
 function bonusRemainingMs() {
@@ -379,12 +380,14 @@ function bonusRemainingMs() {
   return Math.max(0, last + BONUS_INTERVAL_MS - now);
 }
 
-/** 754000 -> "12:34" */
+/** 3754000 -> "1:02:34", 754000 -> "12:34" */
 function formatCountdown(ms) {
   const total = Math.ceil(ms / 1000);
-  const min = Math.floor(total / 60);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
   const sec = total % 60;
-  return `${min}:${String(sec).padStart(2, '0')}`;
+  const pad = (n) => String(n).padStart(2, '0');
+  return h > 0 ? `${h}:${pad(m)}:${pad(sec)}` : `${m}:${pad(sec)}`;
 }
 
 /** Zeichnet die Bonus-Karte im Shop und den Hinweis im Hauptmenü. */
@@ -406,8 +409,8 @@ function renderBonus() {
   button.textContent = ready ? 'Jetzt abholen' : `Bereit in ${formatCountdown(remaining)}`;
 
   $('#bonus-sub').textContent = ready
-    ? `Dein Bonus wartet. Danach wieder alle ${BONUS.intervalMinutes} Minuten.`
-    : `Alle ${BONUS.intervalMinutes} Minuten kannst du dir Guthaben abholen.`;
+    ? 'Dein Bonus wartet. Danach wieder in 24 Stunden.'
+    : 'Einmal alle 24 Stunden kannst du dir Guthaben abholen.';
 
   // Fortschrittsbalken füllt sich, bis der Bonus wieder bereit ist
   const progress = ready ? 1 : 1 - remaining / BONUS_INTERVAL_MS;
@@ -424,7 +427,176 @@ async function claimBonus() {
   sound.win();
   toast(`${money(BONUS.amount)} gutgeschrieben!`, 'good');
   renderBonus();
+  renderThemes();
   if (getScreen() === 'game') refresh();
+}
+
+/* ==================================================================== */
+/* Designs (Themes)                                                      */
+/* ==================================================================== */
+
+/** Alle Designs, die dem Konto gehören. Das Standarddesign ist immer dabei. */
+function ownedThemes() {
+  const saved = state.profile?.stats?.ownedThemes;
+  const list = Array.isArray(saved) ? saved.filter((id) => themeById(id)) : [];
+  return [...new Set([DEFAULT_THEME, ...list])];
+}
+
+const ownsTheme = (id) => ownedThemes().includes(id);
+const activeThemeId = () => safeThemeId(state.profile?.stats?.activeTheme);
+
+/** Setzt das Design auf der ganzen Seite. */
+function applyTheme(id) {
+  const themeId = safeThemeId(id);
+  if (themeId === DEFAULT_THEME) delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = themeId;
+  state.wheel?.refreshTheme();
+}
+
+/** Kauf: prüft Besitz und Guthaben, bucht ab und aktiviert das Design. */
+async function buyTheme(id) {
+  const theme = themeById(id);
+  if (!theme || !state.profile || ownsTheme(id)) return;
+  if (available() < theme.price) {
+    toast('Dafür reicht dein Guthaben nicht.', 'warn');
+    return;
+  }
+  state.profile.balance -= theme.price;
+  state.profile.stats.ownedThemes = [...ownedThemes(), id];
+  state.profile.stats.activeTheme = id;
+  await persist();
+  applyTheme(id);
+  paintBalance(available());
+  ensureAffordableChip();
+  sound.win();
+  toast(`${theme.name} gekauft und aktiviert.`, 'good');
+  renderThemes();
+  if (getScreen() === 'game') refresh();
+}
+
+/** Wechselt zu einem bereits gekauften Design. */
+async function activateTheme(id) {
+  if (!state.profile || !ownsTheme(id) || activeThemeId() === id) return;
+  state.profile.stats.activeTheme = safeThemeId(id);
+  applyTheme(id);
+  await persist();
+  sound.chip();
+  toast(`${themeById(id).name} ist jetzt aktiv.`, 'good');
+  renderThemes();
+}
+
+/** Baut die Design-Karten im Shop. */
+function renderThemes() {
+  const host = $('#theme-grid');
+  if (!host || !state.profile) return;
+  host.innerHTML = '';
+
+  for (const theme of THEMES) {
+    const owned = ownsTheme(theme.id);
+    const active = activeThemeId() === theme.id;
+    const affordable = available() >= theme.price;
+
+    const card = document.createElement('article');
+    card.className = `theme-card${active ? ' is-active' : ''}`;
+
+    const preview = document.createElement('div');
+    preview.className = 'theme-preview';
+    preview.innerHTML = theme.swatch.map((c) => `<span style="background:${c}"></span>`).join('');
+    card.appendChild(preview);
+
+    const name = document.createElement('h3');
+    name.className = 'theme-name';
+    name.innerHTML = `${theme.name}${active ? '<span class="theme-tag">Aktiv</span>' : ''}`;
+    card.appendChild(name);
+
+    const blurb = document.createElement('p');
+    blurb.className = 'theme-blurb';
+    blurb.textContent = theme.blurb;
+    card.appendChild(blurb);
+
+    const button = document.createElement('button');
+    button.type = 'button';
+    if (active) {
+      button.className = 'btn btn-ghost';
+      button.textContent = 'Aktiviert';
+      button.disabled = true;
+    } else if (owned) {
+      button.className = 'btn btn-gold';
+      button.textContent = 'Aktivieren';
+      button.onclick = () => activateTheme(theme.id);
+    } else {
+      button.className = `btn ${affordable ? 'btn-gold' : 'btn-ghost'}`;
+      button.innerHTML = `Kaufen · <span class="theme-price">${money(theme.price)}</span>`;
+      button.disabled = !affordable;
+      button.onclick = () => buyTheme(theme.id);
+    }
+    card.appendChild(button);
+
+    if (!owned && !affordable) {
+      const hint = document.createElement('p');
+      hint.className = 'theme-hint';
+      hint.textContent = `Es fehlen noch ${money(theme.price - available())}`;
+      card.appendChild(hint);
+    }
+    host.appendChild(card);
+  }
+}
+
+/* ==================================================================== */
+/* Spielauswahl                                                          */
+/* ==================================================================== */
+
+/** Baut die Karten der Spielauswahl aus dem Katalog (js/catalog.js). */
+function renderGames() {
+  const host = $('#game-grid');
+  if (!host) return;
+  host.innerHTML = '';
+
+  for (const game of GAMES) {
+    const card = document.createElement(game.available ? 'button' : 'article');
+    card.className = `game-card${game.available ? '' : ' is-locked'}`;
+    if (game.available) {
+      card.type = 'button';
+      card.onclick = () => openGame(game.id);
+    } else {
+      card.setAttribute('aria-disabled', 'true');
+    }
+
+    const art = document.createElement('div');
+    art.className = `game-art game-art-${game.id === 'roulette' ? 'roulette' : 'soon'}`;
+    art.setAttribute('aria-hidden', 'true');
+    card.appendChild(art);
+
+    const head = document.createElement('div');
+    head.innerHTML = `<h2 class="game-title">${game.title}</h2>
+      <p class="game-tagline">${game.tagline}</p>`;
+    card.appendChild(head);
+
+    const facts = document.createElement('div');
+    facts.className = 'game-facts';
+    facts.innerHTML = (game.facts || []).map((f) => `<span class="game-fact">${f}</span>`).join('');
+    card.appendChild(facts);
+
+    if (game.available) {
+      const cta = document.createElement('span');
+      cta.className = 'btn btn-gold';
+      cta.textContent = 'Spielen';
+      card.appendChild(cta);
+    } else {
+      const cta = document.createElement('span');
+      cta.className = 'game-cta';
+      cta.textContent = 'In Arbeit';
+      card.appendChild(cta);
+    }
+    host.appendChild(card);
+  }
+}
+
+/** Öffnet ein Spiel aus dem Katalog. */
+function openGame(gameId) {
+  const game = GAMES.find((g) => g.id === gameId);
+  if (!game?.available || !game.screen) return;
+  navigate(game.screen);
 }
 
 /* ==================================================================== */
@@ -436,9 +608,11 @@ function applySession(session) {
   paintUsername(session.user.name);
   $('#settings-account-info').textContent =
     `${session.user.name} · ${store.mode === 'supabase' ? 'Server-Konto (Supabase)' : 'Lokales Konto in diesem Browser'}`;
+  applyTheme(activeThemeId());
   paintBalance(available());
   renderStats(state.profile.stats);
   renderBonus();
+  renderThemes();
 }
 
 async function handleAuthSubmit(ev) {
@@ -501,21 +675,30 @@ async function logout() {
   await store.logout();
   state.profile = null;
   state.lastSnapshot = [];
+  applyTheme(DEFAULT_THEME);
   showScreen('auth');
   toast('Abgemeldet. Dein Spielstand bleibt gespeichert.');
 }
 
+/**
+ * Wechselt den Bildschirm. Neue Bereiche brauchen hier nur einen Eintrag,
+ * wenn sie beim Öffnen etwas vorbereiten müssen.
+ */
 function navigate(target) {
+  const needsAccount = ['game', 'games', 'shop', 'settings'];
+  if (needsAccount.includes(target) && !state.profile) return showScreen('auth');
+
   if (target === 'game') {
-    if (!state.profile) return showScreen('auth');
     showScreen('game');
     state.wheel.resize();
     refresh();
     return;
   }
+  if (target === 'games') renderGames();
+  if (target === 'shop') { renderThemes(); renderBonus(); }
+  if (target === 'menu') renderBonus();
   if (target === 'privacy') state.prevScreen = getScreen() || 'menu';
   showScreen(target);
-  if (target === 'shop' || target === 'menu') renderBonus();
 }
 
 /**
@@ -575,6 +758,7 @@ async function deleteAccount() {
     await store.deleteAccount();
     state.profile = null;
     state.ledger.clear();
+    applyTheme(DEFAULT_THEME);
     showScreen('auth');
     toast('Konto und alle Daten wurden gelöscht.', 'good');
   } catch (err) {
@@ -600,6 +784,7 @@ async function boot() {
   const bootText = $('#boot-text');
 
   buildChips();
+  renderGames();
   buildBoard($('#board'), placeBet, removeBet);
   state.wheel = createWheel($('#wheel-canvas'), {
     onTick: (left) => sound.tick(left)

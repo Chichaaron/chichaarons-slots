@@ -8,13 +8,16 @@ import { colorOf, money, signedMoney, COLOR_LABEL } from './roulette.js';
 export const $ = (sel, root = document) => root.querySelector(sel);
 export const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
-const SCREENS = ['auth', 'menu', 'game', 'shop', 'settings', 'privacy'];
 let currentScreen = null;
 
+/**
+ * Zeigt genau einen Bildschirm. Die Liste wird aus dem DOM gelesen – ein neuer
+ * <section class="screen" id="screen-xyz"> funktioniert dadurch sofort, ohne
+ * dass hier etwas nachgetragen werden muss.
+ */
 export function showScreen(name) {
-  for (const s of SCREENS) {
-    const el = document.getElementById(`screen-${s}`);
-    if (el) el.hidden = s !== name;
+  for (const el of document.querySelectorAll('.screen')) {
+    el.hidden = el.id !== `screen-${name}`;
   }
   currentScreen = name;
   window.scrollTo({ top: 0 });
