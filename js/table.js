@@ -13,10 +13,17 @@ import { colorOf, betInfo } from './roulette.js';
 
 const nfShort = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 });
 
-/** Kompakte Beschriftung für den Jeton auf dem Feld: 1250 -> "1,3k" */
+/**
+ * Kompakte Beschriftung für den Jeton auf dem Feld.
+ * 1250 -> "1,3k" · 250000 -> "250k" · 12000000 -> "12M" · 999999999 -> "1Mrd"
+ * Der genaue Betrag steht im Tooltip des Jetons.
+ */
 function chipLabel(value) {
-  if (value >= 10000) return `${Math.round(value / 1000)}k`;
-  if (value >= 1000) return `${(value / 1000).toFixed(1).replace('.', ',')}k`;
+  // ab 10 ganze Zahlen, darunter eine Nachkommastelle ohne unnötige ",0"
+  const short = (v) => String(v >= 10 ? Math.round(v) : Math.round(v * 10) / 10).replace('.', ',');
+  if (value >= 999.5e6) return `${short(value / 1e9)}Mrd`;
+  if (value >= 999.5e3) return `${short(value / 1e6)}M`;
+  if (value >= 999.5) return `${short(value / 1e3)}k`;
   return nfShort.format(value);
 }
 

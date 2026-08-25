@@ -6,7 +6,18 @@
  * pro Feld und die Reihenfolge für "Rückgängig".
  */
 import { betInfo } from './roulette.js';
-import { APP_CONFIG } from './config.js';
+
+/**
+ * Höchster Einsatz pro Feld – ein reines Spielgeld-Limit.
+ * Gilt für Jetons, den eigenen Betrag und den MAX-Knopf gleichermaßen.
+ */
+export const MAX_BET = 999999999;
+
+/**
+ * Obergrenze für das Guthaben. Verhindert, dass eine Glückssträhne Werte
+ * erzeugt, die die Datenbankspalte (numeric(14,2)) nicht mehr aufnehmen kann.
+ */
+export const MAX_BALANCE = 999999999999;
 
 export function createLedger() {
   /** @type {Map<string, number>} Feld-ID -> gesetzter Betrag */
@@ -23,7 +34,7 @@ export function createLedger() {
       if (!Number.isFinite(value) || value <= 0) return 0;
       if (value > available) return 0;                       // nie mehr als das Guthaben
       const current = map.get(id) || 0;
-      if (current + value > APP_CONFIG.maxBetPerField) return 0;
+      if (current + value > MAX_BET) return 0;            // Feldlimit
       map.set(id, current + value);
       stack.push({ id, amount: value });
       return value;

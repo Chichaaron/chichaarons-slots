@@ -12,7 +12,7 @@
 import { APP_CONFIG } from './config.js';
 import { spinNumber, resolveRound, betInfo, money, colorOf, COLOR_LABEL } from './roulette.js';
 import { store, loadSettings, saveSettings } from './storage.js';
-import { createLedger } from './bets.js';
+import { createLedger, MAX_BET, MAX_BALANCE } from './bets.js';
 import { GAMES, THEMES, DEFAULT_THEME, themeById, safeThemeId } from './catalog.js';
 import { buildBoard, renderBoardChips, highlightWinner, clearHighlight, renderLastNumbers } from './table.js';
 import { createWheel } from './wheel.js';
@@ -23,6 +23,12 @@ import {
 } from './ui.js';
 
 const SPIN_DURATION = { fast: 4200, normal: 6400, cinematic: 8600 };
+
+/* ----- Jetons an der Einsatzleiste (Reihenfolge = Anzeige) ----- */
+const CHIPS = [10, 20, 50, 100, 200, 500, 1000];
+
+/** Kennung des MAX-Jetons. Sein Betrag wird bei jedem Klick neu bestimmt. */
+const MAX_CHIP = 'max';
 
 /* ----- Gratis-Bonus im Shop: hier die beiden Zahlen anpassen ----- */
 const BONUS = {
@@ -56,6 +62,17 @@ const state = {
 /* ==================================================================== */
 
 const available = () => state.profile?.balance ?? 0;
+
+/** Schreibt einen Betrag gut und bleibt dabei innerhalb der Guthabengrenze. */
+function credit(amount) {
+  state.profile.balance = Math.min(MAX_BALANCE, state.profile.balance + amount);
+}
+
+/** Einsatz, den der MAX-Jeton gerade bedeutet: das Kleinere aus Guthaben und Limit. */
+const maxBetAmount = () => Math.max(0, Math.min(available(), MAX_BET));
+
+/** Betrag des gerade gewählten Jetons (MAX wird live berechnet). */
+const chipAmount = () => (state.chipValue === MAX_CHIP ? maxBetAmount() : state.chipValue);
 
 /**
  * Speichert den Spielstand im Konto.
@@ -94,8 +111,17 @@ function refresh(results = null) {
 
   // Jetons deaktivieren, für die das Guthaben nicht reicht
   for (const chip of $$('#chips .chip')) {
-    chip.disabled = Number(chip.dataset.value) > available() || state.phase !== 'betting';
-    chip.classList.toggle('is-active', Number(chip.dataset.value) === state.chipValue);
+    const isMax = chip.dataset.value === MAX_CHIP;
+    const value = isMax ? maxBetAmount() : Number(chip.dataset.value);
+    chip.disabled = state.phase !== 'betting' || value <= 0 || value > available();
+    chip.classList.toggle('is-active', isMax
+      ? state.chipValue === MAX_CHIP
+      : value === state.chipValue);
+    if (isMax) {
+      const label = chip.querySelector('small');
+      if (label) label.textContent = money(value);
+      chip.title = `Setzt ${money(value)} – das Kleinere aus Guthaben und Limit (${money(MAX_BET)})`;
+    }
   }
 
   const betting = state.phase === 'betting';
@@ -128,7 +154,7 @@ function renderBoardHint() {
   btn.className = 'btn btn-gold btn-sm';
   btn.textContent = `Notfall-Guthaben: +${money(APP_CONFIG.bailout)} virtuelles Spielgeld`;
   btn.onclick = async () => {
-    state.profile.balance += APP_CONFIG.bailout;
+    credit(APP_CONFIG.bailout);
     state.profile.stats.bailouts = (state.profile.stats.bailouts || 0) + 1;
     await persist();
     toast(`${money(APP_CONFIG.bailout)} gutgeschrieben.`, 'good');
@@ -147,8 +173,9 @@ function renderBoardHint() {
  * Auswählen aufgerufen – eine bewusste Auswahl des Spielers bleibt stehen.
  */
 function ensureAffordableChip() {
+  if (state.chipValue === MAX_CHIP) return;   // MAX passt sich von selbst an
   if (state.chipValue <= available() || available() <= 0) return;
-  const affordable = APP_CONFIG.chips.filter((c) => c <= available());
+  const affordable = CHIPS.filter((c) => c <= available());
   if (affordable.length) state.chipValue = affordable[affordable.length - 1];
 }
 
@@ -157,7 +184,11 @@ function placeBet(betId) {
     toast('Nichts geht mehr – die Runde läuft.', 'warn');
     return;
   }
-  const value = state.chipValue;
+  const value = chipAmount();
+  if (value <= 0) {
+    toast('Dein Guthaben ist aufgebraucht.', 'warn');
+    return;
+  }
   if (value > available()) {
     toast('Dafür reicht dein Guthaben nicht.', 'warn');
     return;
@@ -253,7 +284,7 @@ async function letItRide() {
   await delay(1700);
 
   // 5) Guthaben gutschreiben (Rückzahlung = Einsatz + Gewinn bei Treffern)
-  state.profile.balance += round.returned;
+  credit(round.returned);
   updateStats(round);
   paintBalance(available());
 
@@ -314,22 +345,36 @@ function startNextRound(repeat) {
 function buildChips() {
   const host = $('#chips');
   host.innerHTML = '';
-  for (const value of APP_CONFIG.chips) {
+  for (const value of CHIPS) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = `chip chip-c${value}`;
     btn.dataset.value = String(value);
-    btn.textContent = `${value} €`;
+    btn.textContent = value >= 1000 ? `${value / 1000}k €` : `${value} €`;
     btn.setAttribute('role', 'radio');
     btn.setAttribute('aria-label', `Jeton ${value} Euro`);
     btn.onclick = () => selectChip(value);
     host.appendChild(btn);
   }
+
+  // MAX: setzt immer das Kleinere aus Guthaben und Einsatzlimit
+  const max = document.createElement('button');
+  max.type = 'button';
+  max.className = 'chip chip-max';
+  max.dataset.value = MAX_CHIP;
+  max.setAttribute('role', 'radio');
+  max.setAttribute('aria-label', 'Maximalen Einsatz wählen');
+  max.innerHTML = '<b>MAX</b><small>—</small>';
+  max.onclick = () => selectChip(MAX_CHIP);
+  host.appendChild(max);
 }
 
 function selectChip(value) {
   state.chipValue = value;
   sound.chip();
+  if (value === MAX_CHIP && maxBetAmount() > 0) {
+    toast(`MAX gewählt: ${money(maxBetAmount())} pro Feld.`);
+  }
   refresh();
 }
 
@@ -340,8 +385,8 @@ function applyCustomChip() {
     toast('Bitte einen Betrag größer als 0 eingeben.', 'warn');
     return;
   }
-  if (value > APP_CONFIG.maxBetPerField) {
-    toast(`Maximal ${money(APP_CONFIG.maxBetPerField)} pro Feld.`, 'warn');
+  if (value > MAX_BET) {
+    toast(`Maximal ${money(MAX_BET)} pro Feld.`, 'warn');
     return;
   }
   if (value > available()) {
@@ -419,7 +464,7 @@ function renderBonus() {
 
 async function claimBonus() {
   if (!state.profile || bonusRemainingMs() > 0) return;
-  state.profile.balance += BONUS.amount;
+  credit(BONUS.amount);
   state.profile.stats.lastBonusAt = Date.now();
   state.profile.stats.bonusesClaimed = (state.profile.stats.bonusesClaimed || 0) + 1;
   await persist();
