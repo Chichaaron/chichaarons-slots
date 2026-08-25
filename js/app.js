@@ -23,6 +23,12 @@ import {
 
 const SPIN_DURATION = { fast: 4200, normal: 6400, cinematic: 8600 };
 
+/* ----- Gratis-Bonus im Shop: hier die beiden Zahlen anpassen ----- */
+const BONUS = {
+  amount: 10000,        // wie viel es pro Abholung gibt
+  intervalMinutes: 15   // wie lange man danach warten muss
+};
+
 /**
  * Diagnose-Objekt (window.__grandVert). Wird von den automatisierten Tests
  * gelesen und erleichtert die Fehlersuche. Enthält keine Geheimnisse:
@@ -50,12 +56,20 @@ const state = {
 
 const available = () => state.profile?.balance ?? 0;
 
-/** Speichert den Spielstand im Konto. Nur aufrufen, wenn keine Einsätze offen sind. */
+/**
+ * Speichert den Spielstand im Konto.
+ *
+ * Noch nicht ausgewertete Einsätze liegen zwar schon nicht mehr im Guthaben,
+ * gehören dem Spieler aber weiterhin – beim Neuladen wird die Runde ja
+ * verworfen. Deshalb werden sie hier wieder mitgezählt. Nach dem Wurf
+ * (phase 'result') sind sie bereits verrechnet und dürfen NICHT dazukommen.
+ */
 async function persist() {
   if (!state.profile) return;
+  const pending = state.phase === 'betting' ? state.ledger.total() : 0;
   state.profile.updatedAt = new Date().toISOString();
   try {
-    await store.saveProfile(state.profile);
+    await store.saveProfile({ ...state.profile, balance: state.profile.balance + pending });
   } catch (err) {
     console.error(err);
     toast('Spielstand konnte nicht gespeichert werden.', 'warn');
@@ -350,6 +364,70 @@ function applyCustomChip() {
 }
 
 /* ==================================================================== */
+/* Gratis-Bonus im Shop                                                  */
+/* ==================================================================== */
+
+const BONUS_INTERVAL_MS = BONUS.intervalMinutes * 60 * 1000;
+
+/** Millisekunden bis zur nächsten Abholung (0 = jetzt abholbar). */
+function bonusRemainingMs() {
+  if (!state.profile) return BONUS_INTERVAL_MS;
+  const last = Number(state.profile.stats.lastBonusAt) || 0;
+  const now = Date.now();
+  // Uhr zurückgestellt? Dann nicht dauerhaft sperren, sondern freigeben.
+  if (last > now) return 0;
+  return Math.max(0, last + BONUS_INTERVAL_MS - now);
+}
+
+/** 754000 -> "12:34" */
+function formatCountdown(ms) {
+  const total = Math.ceil(ms / 1000);
+  const min = Math.floor(total / 60);
+  const sec = total % 60;
+  return `${min}:${String(sec).padStart(2, '0')}`;
+}
+
+/** Zeichnet die Bonus-Karte im Shop und den Hinweis im Hauptmenü. */
+function renderBonus() {
+  const badge = $('#menu-shop-badge');
+  const card = document.querySelector('.bonus-card');
+  if (!card || !badge) return;
+
+  const remaining = state.profile ? bonusRemainingMs() : BONUS_INTERVAL_MS;
+  const ready = state.profile && remaining === 0;
+
+  badge.hidden = !ready;
+
+  $('#bonus-amount').textContent = `+${money(BONUS.amount)}`;
+  card.classList.toggle('is-ready', Boolean(ready));
+
+  const button = $('#btn-bonus');
+  button.disabled = !ready;
+  button.textContent = ready ? 'Jetzt abholen' : `Bereit in ${formatCountdown(remaining)}`;
+
+  $('#bonus-sub').textContent = ready
+    ? `Dein Bonus wartet. Danach wieder alle ${BONUS.intervalMinutes} Minuten.`
+    : `Alle ${BONUS.intervalMinutes} Minuten kannst du dir Guthaben abholen.`;
+
+  // Fortschrittsbalken füllt sich, bis der Bonus wieder bereit ist
+  const progress = ready ? 1 : 1 - remaining / BONUS_INTERVAL_MS;
+  $('#bonus-bar-fill').style.width = `${Math.round(progress * 100)}%`;
+}
+
+async function claimBonus() {
+  if (!state.profile || bonusRemainingMs() > 0) return;
+  state.profile.balance += BONUS.amount;
+  state.profile.stats.lastBonusAt = Date.now();
+  state.profile.stats.bonusesClaimed = (state.profile.stats.bonusesClaimed || 0) + 1;
+  await persist();
+  paintBalance(available());
+  sound.win();
+  toast(`${money(BONUS.amount)} gutgeschrieben!`, 'good');
+  renderBonus();
+  if (getScreen() === 'game') refresh();
+}
+
+/* ==================================================================== */
 /* Konto / Navigation                                                    */
 /* ==================================================================== */
 
@@ -360,6 +438,7 @@ function applySession(session) {
     `${session.user.name} · ${store.mode === 'supabase' ? 'Server-Konto (Supabase)' : 'Lokales Konto in diesem Browser'}`;
   paintBalance(available());
   renderStats(state.profile.stats);
+  renderBonus();
 }
 
 async function handleAuthSubmit(ev) {
@@ -436,6 +515,7 @@ function navigate(target) {
   }
   if (target === 'privacy') state.prevScreen = getScreen() || 'menu';
   showScreen(target);
+  if (target === 'shop' || target === 'menu') renderBonus();
 }
 
 /**
@@ -540,6 +620,12 @@ async function boot() {
   $('#btn-clear').addEventListener('click', clearBets);
   $('#btn-repeat').addEventListener('click', repeatBets);
   $('#btn-custom').addEventListener('click', applyCustomChip);
+  $('#btn-bonus').addEventListener('click', claimBonus);
+
+  // Countdown und Menü-Hinweis einmal pro Sekunde auffrischen
+  setInterval(() => {
+    if (state.profile) renderBonus();
+  }, 1000);
   $('#custom-amount').addEventListener('keydown', (e) => { if (e.key === 'Enter') applyCustomChip(); });
 
   // Einstellungen
