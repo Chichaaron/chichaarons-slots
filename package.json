@@ -1,0 +1,13 @@
+{
+  "name": "grand-vert-roulette",
+  "version": "1.0.0",
+  "description": "Europäisches Roulette mit virtuellem Spielgeld, Account-System und dauerhaft gespeichertem Spielstand.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "python3 -m http.server 8080",
+    "test": "node tests/logic.test.mjs",
+    "build": "node build/build.mjs"
+  },
+  "license": "MIT"
+}

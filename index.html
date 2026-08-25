@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Grand Vert Roulette</title>
+  <meta name="description" content="Roulette mit virtuellem Spielgeld. Kein Echtgeld, keine Werbung, kein Tracking." />
+  <meta name="color-scheme" content="dark" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%230f2c20' stroke='%23d4af6a' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='4' fill='%23d4af6a'/%3E%3Cpath d='M16 1v30M1 16h30' stroke='%23d4af6a' stroke-width='1.2' opacity='.55'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<!-- ===================== Ladebildschirm ===================== -->
+<div id="boot" class="boot">
+  <div class="boot-wheel" aria-hidden="true"></div>
+  <p id="boot-text">Tisch wird vorbereitet …</p>
+</div>
+
+<!-- ===================== Anmeldung / Registrierung ===================== -->
+<section id="screen-auth" class="screen" hidden>
+  <div class="auth-card">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <div>
+        <h1 class="brand-name">GRAND VERT</h1>
+        <p class="brand-sub">Roulette · nur virtuelles Spielgeld</p>
+      </div>
+    </div>
+
+    <div class="tabs" role="tablist">
+      <button class="tab is-active" data-auth-tab="login" role="tab" aria-selected="true">Anmelden</button>
+      <button class="tab" data-auth-tab="register" role="tab" aria-selected="false">Registrieren</button>
+    </div>
+
+    <form id="auth-form" autocomplete="on" novalidate>
+      <label class="field">
+        <span class="field-label" id="auth-id-label">Benutzername</span>
+        <input id="auth-identifier" name="username" type="text" autocomplete="username" required />
+        <small class="field-hint" id="auth-id-hint"></small>
+      </label>
+
+      <label class="field">
+        <span class="field-label">Passwort</span>
+        <input id="auth-password" name="password" type="password" autocomplete="current-password" required minlength="6" />
+        <small class="field-hint">Mindestens 6 Zeichen</small>
+      </label>
+
+      <label class="field" id="auth-password2-field" hidden>
+        <span class="field-label">Passwort wiederholen</span>
+        <input id="auth-password2" type="password" autocomplete="new-password" />
+      </label>
+
+      <p class="form-error" id="auth-error" role="alert" hidden></p>
+
+      <button class="btn btn-gold btn-block" id="auth-submit" type="submit">Anmelden</button>
+    </form>
+
+    <p class="auth-foot">
+      <span id="auth-mode-note"></span>
+      <button class="linkish" data-nav="privacy" type="button">Datenschutz</button>
+    </p>
+  </div>
+</section>
+
+<!-- ===================== Hauptmenü ===================== -->
+<section id="screen-menu" class="screen" hidden>
+  <div class="menu-card">
+    <div class="brand brand-lg">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <div>
+        <h1 class="brand-name">GRAND VERT</h1>
+        <p class="brand-sub">Roulette · nur virtuelles Spielgeld</p>
+      </div>
+    </div>
+
+    <div class="menu-balance">
+      <span class="menu-balance-label">Guthaben</span>
+      <strong class="menu-balance-value" data-balance>—</strong>
+      <span class="menu-user">Angemeldet als <b data-username>—</b></span>
+    </div>
+
+    <nav class="menu-nav">
+      <button class="menu-btn menu-btn-primary" data-nav="game">
+        <span class="menu-btn-title">Spielen</span>
+        <span class="menu-btn-sub">Europäisches Roulette · Einzelzahl bis Außenwette</span>
+      </button>
+      <button class="menu-btn" data-nav="shop">
+        <span class="menu-btn-title">Shop</span>
+        <span class="menu-btn-sub">Jeton-Designs &amp; Tischfarben · in Arbeit</span>
+      </button>
+      <button class="menu-btn" data-nav="settings">
+        <span class="menu-btn-title">Einstellungen</span>
+        <span class="menu-btn-sub">Sound, Tempo, Konto &amp; Daten</span>
+      </button>
+    </nav>
+
+    <div class="menu-foot">
+      <button class="linkish" data-nav="privacy" type="button">Datenschutz</button>
+      <button class="linkish" id="btn-logout" type="button">Abmelden</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== Spiel ===================== -->
+<section id="screen-game" class="screen screen-game" hidden>
+  <header class="topbar">
+    <button class="icon-btn" data-nav="menu" title="Zurück zum Menü" aria-label="Zurück zum Menü">‹ Menü</button>
+    <div class="topbar-brand">
+      <span class="brand-mark brand-mark-sm" aria-hidden="true"></span>
+      <span>GRAND VERT</span>
+    </div>
+    <div class="topbar-right">
+      <div class="stat">
+        <span class="stat-label">Im Spiel</span>
+        <strong class="stat-value" id="staked-total">0 €</strong>
+      </div>
+      <div class="stat stat-balance">
+        <span class="stat-label">Guthaben</span>
+        <strong class="stat-value" data-balance>—</strong>
+      </div>
+    </div>
+  </header>
+
+  <main class="game-layout">
+    <!-- Bühne: Brett und Rad teilen sich denselben Bereich -->
+    <div class="stage" id="stage">
+      <div class="board-wrap" id="board-wrap">
+        <div class="last-numbers" id="last-numbers" aria-label="Letzte Zahlen"></div>
+        <div class="board-scroll">
+          <div class="board" id="board"><!-- wird von table.js erzeugt --></div>
+        </div>
+        <p class="board-hint" id="board-hint">Jeton wählen, dann auf ein Feld klicken. Rechtsklick entfernt einen Jeton.</p>
+      </div>
+
+      <div class="wheel-wrap" id="wheel-wrap" aria-hidden="true">
+        <div class="wheel-holder">
+          <canvas id="wheel-canvas" width="560" height="560"></canvas>
+        </div>
+        <div class="wheel-status" id="wheel-status">Kein Einsatz mehr …</div>
+        <div class="result-badge" id="result-badge" hidden>
+          <span class="result-caption">GEWINNZAHL</span>
+          <span class="result-number" id="result-number">0</span>
+          <span class="result-color" id="result-color">Grün</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Einsatzübersicht -->
+    <aside class="sidepanel">
+      <h2 class="panel-title">Einsätze</h2>
+      <div class="bet-table" role="table" aria-label="Aktuelle Einsätze">
+        <div class="bet-head" role="row">
+          <span role="columnheader">Einsatz</span>
+          <span role="columnheader" class="ta-right">Betrag</span>
+          <span role="columnheader" class="ta-right">Ergebnis</span>
+        </div>
+        <div class="bet-body" id="bet-list" role="rowgroup">
+          <p class="bet-empty" id="bet-empty">Noch keine Einsätze platziert.</p>
+        </div>
+        <div class="bet-foot">
+          <span>Gesamt</span>
+          <span class="ta-right" id="bet-total">0 €</span>
+          <span class="ta-right" id="bet-result-total">—</span>
+        </div>
+      </div>
+
+      <div class="panel-actions">
+        <button class="btn btn-ghost" id="btn-undo" type="button">Rückgängig</button>
+        <button class="btn btn-ghost" id="btn-clear" type="button">Löschen</button>
+        <button class="btn btn-ghost" id="btn-repeat" type="button">Wiederholen</button>
+      </div>
+
+      <div class="panel-stats" id="panel-stats"></div>
+    </aside>
+  </main>
+
+  <!-- Jetons + Rundenstart -->
+  <footer class="chipbar" id="chipbar">
+    <div class="chips" id="chips" role="radiogroup" aria-label="Einsatzwert"></div>
+    <div class="chip-custom">
+      <label for="custom-amount" class="sr-only">Eigener Einsatz</label>
+      <input id="custom-amount" type="number" min="1" step="1" placeholder="Eigener Betrag" inputmode="numeric" />
+      <button class="btn btn-ghost btn-sm" id="btn-custom" type="button">Setzen als Jeton</button>
+    </div>
+    <button class="btn btn-ride" id="btn-ride" type="button" disabled>
+      <span>LET IT RIDE</span>
+      <small id="ride-sub">Einsätze platzieren</small>
+    </button>
+  </footer>
+</section>
+
+<!-- ===================== Shop ===================== -->
+<section id="screen-shop" class="screen" hidden>
+  <div class="page-card">
+    <header class="page-head">
+      <button class="icon-btn" data-nav="menu">‹ Menü</button>
+      <h1>Shop</h1>
+    </header>
+    <p class="page-lead">
+      Hier entstehen kosmetische Extras: Jeton-Designs, Tischfarben und Rad-Varianten.
+      Alles ausschließlich für virtuelles Spielgeld – es gibt keine Echtgeld-Käufe.
+    </p>
+    <div class="shop-grid">
+      <article class="shop-item"><span class="shop-thumb thumb-classic"></span><h3>Classic Green</h3><p>Aktiv</p></article>
+      <article class="shop-item is-locked"><span class="shop-thumb thumb-noir"></span><h3>Noir</h3><p>Bald verfügbar</p></article>
+      <article class="shop-item is-locked"><span class="shop-thumb thumb-royal"></span><h3>Royal Bordeaux</h3><p>Bald verfügbar</p></article>
+      <article class="shop-item is-locked"><span class="shop-thumb thumb-ivory"></span><h3>Ivory &amp; Gold</h3><p>Bald verfügbar</p></article>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== Einstellungen ===================== -->
+<section id="screen-settings" class="screen" hidden>
+  <div class="page-card">
+    <header class="page-head">
+      <button class="icon-btn" data-nav="menu">‹ Menü</button>
+      <h1>Einstellungen</h1>
+    </header>
+
+    <div class="setting-row">
+      <div>
+        <h3>Sound</h3>
+        <p>Dezente Klicks beim Setzen und beim Lauf der Kugel.</p>
+      </div>
+      <label class="switch"><input type="checkbox" id="set-sound" /><span></span></label>
+    </div>
+
+    <div class="setting-row">
+      <div>
+        <h3>Animationstempo</h3>
+        <p>Wie lange die Kugel läuft.</p>
+      </div>
+      <select id="set-speed" class="select">
+        <option value="fast">Schnell</option>
+        <option value="normal">Normal</option>
+        <option value="cinematic">Ausführlich</option>
+      </select>
+    </div>
+
+    <div class="setting-row">
+      <div>
+        <h3>Konto</h3>
+        <p id="settings-account-info">—</p>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="btn-logout-2" type="button">Abmelden</button>
+    </div>
+
+    <div class="setting-row">
+      <div>
+        <h3>Meine Daten</h3>
+        <p>Spielstand und Statistik als JSON-Datei herunterladen.</p>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="btn-export" type="button">Exportieren</button>
+    </div>
+
+    <div class="setting-row danger">
+      <div>
+        <h3>Konto löschen</h3>
+        <p>Entfernt Konto, Guthaben und Statistik unwiderruflich.</p>
+      </div>
+      <button class="btn btn-danger btn-sm" id="btn-delete" type="button">Löschen</button>
+    </div>
+
+    <p class="page-foot"><button class="linkish" data-nav="privacy" type="button">Datenschutzerklärung ansehen</button></p>
+  </div>
+</section>
+
+<!-- ===================== Datenschutz ===================== -->
+<section id="screen-privacy" class="screen" hidden>
+  <div class="page-card page-text">
+    <header class="page-head">
+      <button class="icon-btn" id="privacy-back">‹ Zurück</button>
+      <h1>Datenschutz</h1>
+    </header>
+
+    <h2>Kurzfassung</h2>
+    <p>
+      Grand Vert ist ein Spiel mit <strong>ausschließlich virtuellem Spielgeld</strong>. Es gibt keine
+      Einzahlungen, keine Auszahlungen und keine Echtgeld-Käufe. Es werden keine Werbung, keine
+      Analyse-Dienste und keine Tracking-Cookies eingesetzt.
+    </p>
+
+    <h2>Welche Daten gespeichert werden</h2>
+    <ul>
+      <li>Anmeldedaten deines Kontos (Benutzername bzw. E-Mail-Adresse und ein <em>gehashtes</em> Passwort)</li>
+      <li>Dein virtuelles Guthaben</li>
+      <li>Spielstatistiken (Anzahl Runden, Gesamteinsatz, Gewinne, Verluste, höchster Gewinn)</li>
+      <li>Die letzten abgeschlossenen Runden (Gewinnzahl, Einsatz, Ergebnis)</li>
+      <li>Lokale Anzeigeeinstellungen wie Sound und Animationstempo</li>
+    </ul>
+    <p>Mehr wird nicht erhoben. Keine IP-Auswertung, kein Profiling, keine Weitergabe an Dritte.</p>
+
+    <h2>Wo die Daten liegen</h2>
+    <p id="privacy-storage-note">—</p>
+
+    <h2>Passwörter</h2>
+    <p>
+      Passwörter werden niemals im Klartext gespeichert. Im lokalen Modus wird PBKDF2-SHA256 mit
+      zufälligem Salt und 210.000 Iterationen verwendet; im Server-Modus übernimmt Supabase Auth
+      die sichere Speicherung.
+    </p>
+
+    <h2>Deine Rechte</h2>
+    <p>
+      Du kannst deine Daten jederzeit unter <em>Einstellungen → Meine Daten</em> exportieren und dein
+      Konto unter <em>Einstellungen → Konto löschen</em> vollständig entfernen. Beim Löschen werden
+      Konto, Guthaben, Statistik und Rundenverlauf unwiderruflich gelöscht.
+    </p>
+
+    <h2>Hinweis zum Spiel</h2>
+    <p>
+      Dieses Spiel bildet Glücksspielmechanik nach, verwendet aber kein echtes Geld. Der Hausvorteil
+      des europäischen Roulettes von 2,7 % ist im Spiel korrekt abgebildet – langfristig verliert man.
+      Genau das ist der Grund, warum hier nur virtuelle Chips im Umlauf sind.
+    </p>
+  </div>
+</section>
+
+<!-- ===================== Rundenauswertung ===================== -->
+<div class="modal" id="summary-modal" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="summary-title">
+    <div class="summary-head">
+      <span class="summary-ball" id="summary-ball">0</span>
+      <div>
+        <h2 id="summary-title">Runde ausgewertet</h2>
+        <p id="summary-sub">—</p>
+      </div>
+    </div>
+    <div class="summary-list" id="summary-list"></div>
+    <div class="summary-totals">
+      <div><span>Gesamteinsatz</span><b id="summary-staked">0 €</b></div>
+      <div><span>Rückzahlung</span><b id="summary-returned">0 €</b></div>
+      <div class="summary-net"><span>Runde gesamt</span><b id="summary-net">0 €</b></div>
+      <div class="summary-balance"><span>Neues Guthaben</span><b id="summary-balance">0 €</b></div>
+    </div>
+    <div class="summary-actions">
+      <button class="btn btn-ghost" id="summary-repeat" type="button">Einsätze wiederholen</button>
+      <button class="btn btn-gold" id="summary-next" type="button">Nächste Runde</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== Datenexport ===================== -->
+<div class="modal" id="export-modal" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="export-title">
+    <h2 id="export-title">Deine gespeicherten Daten</h2>
+    <p class="modal-lead">Das ist alles, was zu deinem Konto gespeichert ist.</p>
+    <textarea id="export-json" class="export-box" readonly spellcheck="false"></textarea>
+    <div class="summary-actions">
+      <button class="btn btn-ghost" id="export-copy" type="button">Kopieren</button>
+      <button class="btn btn-ghost" id="export-download" type="button">Als Datei speichern</button>
+      <button class="btn btn-gold" id="export-close" type="button">Schließen</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== Bestätigungsdialog ===================== -->
+<div class="modal" id="confirm-modal" hidden>
+  <div class="modal-card modal-sm" role="dialog" aria-modal="true">
+    <h2 id="confirm-title">Sicher?</h2>
+    <p id="confirm-text">—</p>
+    <div class="summary-actions">
+      <button class="btn btn-ghost" id="confirm-no" type="button">Abbrechen</button>
+      <button class="btn btn-danger" id="confirm-yes" type="button">Ja, löschen</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-host" class="toast-host" aria-live="polite"></div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

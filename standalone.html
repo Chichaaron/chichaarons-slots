@@ -1,0 +1,3029 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Grand Vert Roulette</title>
+  <meta name="description" content="Roulette mit virtuellem Spielgeld. Kein Echtgeld, keine Werbung, kein Tracking." />
+  <meta name="color-scheme" content="dark" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%230f2c20' stroke='%23d4af6a' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='4' fill='%23d4af6a'/%3E%3Cpath d='M16 1v30M1 16h30' stroke='%23d4af6a' stroke-width='1.2' opacity='.55'/%3E%3C/svg%3E" />
+  <style>
+/* =====================================================================
+   Grand Vert Roulette — Stylesheet
+   Aufbau: 1 Tokens · 2 Basis · 3 Buttons/Formulare · 4 Screens
+           5 Roulette-Brett · 6 Seitenpanel · 7 Jetons · 8 Rad
+           9 Modals/Toasts · 10 Unterseiten · 11 Responsive
+   Bewusst ohne externe Schriftarten oder CDNs (Datenschutz).
+   ===================================================================== */
+
+/* ---------- 1 Tokens ---------- */
+:root {
+  --felt-950: #061109;
+  --felt-900: #08170f;
+  --felt-800: #0b2116;
+  --felt-700: #0f2c1e;
+  --felt-600: #14392a;
+  --felt-500: #1b4a35;
+
+  --ink-900: #0a0d0b;
+  --ink-800: #14181a;
+  --ink-700: #1c2124;
+
+  --gold: #d4af6a;
+  --gold-bright: #f2ddab;
+  --gold-dim: #8d7442;
+
+  --red: #b32127;
+  --red-bright: #d9333a;
+  --black-cell: #16181c;
+
+  --text: #f3efe4;
+  --muted: #93a49a;
+  --win: #4ade80;
+  --loss: #f8717a;
+
+  --radius: 14px;
+  --radius-sm: 9px;
+  --shadow-lg: 0 24px 60px rgba(0, 0, 0, .55);
+  --shadow-md: 0 10px 30px rgba(0, 0, 0, .4);
+  --ring: 0 0 0 2px rgba(212, 175, 106, .55);
+
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* ---------- 2 Basis ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+
+/* [hidden] muss auch ID-Regeln wie "#screen-shop { display:grid }" schlagen */
+[hidden] { display: none !important; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  font-family: var(--font);
+  color: var(--text);
+  background:
+    radial-gradient(1200px 700px at 50% -10%, #16402d 0%, transparent 60%),
+    radial-gradient(900px 600px at 100% 110%, #10281c 0%, transparent 55%),
+    var(--felt-950);
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+  overflow-x: hidden;          /* die weggeschobenen Bühnen-Elemente sollen nie scrollen */
+}
+
+body { min-height: 100dvh; }
+
+h1, h2, h3 { margin: 0; font-weight: 650; letter-spacing: .01em; }
+p { margin: 0; }
+button, input, select { font: inherit; color: inherit; }
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+.ta-right { text-align: right; }
+.linkish {
+  background: none; border: 0; color: var(--muted); cursor: pointer;
+  text-decoration: underline; text-underline-offset: 3px; padding: 4px;
+}
+.linkish:hover { color: var(--gold); }
+
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+/* Zahlen immer gleich breit -> kein Zappeln beim Zählen */
+[data-balance], .stat-value, .bet-row span, .summary-totals b, #bet-total, #bet-result-total {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Markenzeichen */
+.brand { display: flex; align-items: center; gap: 14px; }
+.brand-lg .brand-name { font-size: 30px; }
+.brand-mark {
+  width: 44px; height: 44px; border-radius: 50%; flex: none;
+  background:
+    conic-gradient(from 0deg, var(--black-cell) 0 12.5%, var(--red) 0 25%, var(--black-cell) 0 37.5%,
+      var(--red) 0 50%, var(--black-cell) 0 62.5%, var(--red) 0 75%, var(--black-cell) 0 87.5%, var(--red) 0 100%);
+  box-shadow: 0 0 0 2px var(--gold), inset 0 0 0 8px var(--felt-800), 0 6px 18px rgba(0, 0, 0, .5);
+  position: relative;
+}
+.brand-mark::after {
+  content: ""; position: absolute; inset: 40%; border-radius: 50%;
+  background: linear-gradient(160deg, var(--gold-bright), var(--gold-dim));
+}
+.brand-mark-sm { width: 24px; height: 24px; box-shadow: 0 0 0 1.5px var(--gold), inset 0 0 0 5px var(--felt-800); }
+.brand-name { font-size: 22px; letter-spacing: .16em; }
+.brand-sub { font-size: 12px; color: var(--muted); letter-spacing: .04em; margin-top: 2px; }
+
+/* Ladebildschirm */
+.boot {
+  position: fixed; inset: 0; display: grid; place-content: center; justify-items: center;
+  gap: 18px; z-index: 90; background: var(--felt-950); color: var(--muted);
+  transition: opacity .35s; font-size: 14px;
+}
+.boot.is-gone { opacity: 0; pointer-events: none; }
+.boot-wheel {
+  width: 54px; height: 54px; border-radius: 50%;
+  border: 3px solid rgba(212, 175, 106, .2); border-top-color: var(--gold);
+  animation: spin 1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------- 3 Buttons & Formulare ---------- */
+.btn {
+  border: 1px solid rgba(212, 175, 106, .35);
+  background: linear-gradient(180deg, rgba(255, 255, 255, .06), rgba(0, 0, 0, .25));
+  color: var(--text); padding: 11px 18px; border-radius: var(--radius-sm);
+  cursor: pointer; font-weight: 600; letter-spacing: .02em;
+  transition: transform .12s ease, background .18s, border-color .18s, opacity .18s;
+}
+.btn:hover:not(:disabled) { background: linear-gradient(180deg, rgba(255, 255, 255, .1), rgba(0, 0, 0, .2)); transform: translateY(-1px); }
+.btn:active:not(:disabled) { transform: translateY(0) scale(.985); }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.btn-sm { padding: 8px 13px; font-size: 13px; }
+.btn-block { width: 100%; }
+.btn-ghost { border-color: rgba(255, 255, 255, .14); background: rgba(255, 255, 255, .04); }
+.btn-gold {
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+  color: #2a1e08; border-color: var(--gold-bright); font-weight: 700;
+}
+.btn-gold:hover:not(:disabled) { background: linear-gradient(180deg, #fbeccb, #dcbb78); }
+.btn-danger { border-color: rgba(217, 51, 58, .5); background: rgba(179, 33, 39, .18); color: #ffb9bc; }
+.btn-danger:hover:not(:disabled) { background: rgba(179, 33, 39, .3); }
+
+.field { display: block; margin-bottom: 14px; }
+.field-label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+.field input, .select {
+  width: 100%; padding: 11px 13px; border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, .3); border: 1px solid rgba(255, 255, 255, .12);
+  transition: border-color .18s, box-shadow .18s;
+}
+.field input:focus, .select:focus { border-color: var(--gold); box-shadow: var(--ring); outline: none; }
+.field-hint { display: block; margin-top: 5px; font-size: 11.5px; color: rgba(147, 164, 154, .8); }
+.select { width: auto; min-width: 150px; }
+.form-error {
+  background: rgba(179, 33, 39, .16); border: 1px solid rgba(217, 51, 58, .4);
+  color: #ffc2c5; padding: 10px 12px; border-radius: var(--radius-sm);
+  font-size: 13.5px; margin-bottom: 12px;
+}
+
+.switch { position: relative; display: inline-block; width: 48px; height: 27px; flex: none; }
+/* Die echte Checkbox liegt unsichtbar über dem Schalter: bleibt per Tastatur
+   bedienbar und ist ein sauberes Klickziel. */
+.switch input {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  margin: 0; opacity: 0; cursor: pointer; z-index: 2;
+}
+.switch span {
+  position: absolute; inset: 0; cursor: pointer; border-radius: 99px;
+  background: rgba(255, 255, 255, .12); transition: background .2s;
+}
+.switch span::before {
+  content: ""; position: absolute; width: 21px; height: 21px; left: 3px; top: 3px;
+  background: #cfd6d1; border-radius: 50%; transition: transform .2s, background .2s;
+}
+.switch input:checked + span { background: rgba(212, 175, 106, .55); }
+.switch input:checked + span::before { transform: translateX(21px); background: var(--gold-bright); }
+
+/* ---------- 4 Screens ---------- */
+.screen { animation: fadeIn .3s ease both; }
+.screen[hidden] { display: none; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* Auth */
+#screen-auth, #screen-menu { display: grid; place-items: center; min-height: 100dvh; padding: 24px; }
+.auth-card, .menu-card {
+  width: min(430px, 100%);
+  background: linear-gradient(180deg, rgba(20, 57, 42, .85), rgba(8, 23, 15, .95));
+  border: 1px solid rgba(212, 175, 106, .22);
+  border-radius: 20px; padding: 28px; box-shadow: var(--shadow-lg);
+}
+.tabs { display: flex; gap: 6px; background: rgba(0, 0, 0, .3); padding: 5px; border-radius: 11px; margin: 22px 0 18px; }
+.tab {
+  flex: 1; padding: 9px; border: 0; border-radius: 8px; background: transparent;
+  color: var(--muted); cursor: pointer; font-weight: 600; transition: background .18s, color .18s;
+}
+.tab.is-active { background: rgba(212, 175, 106, .16); color: var(--gold-bright); }
+.auth-foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 16px; font-size: 12px; color: var(--muted); }
+
+/* Menü */
+.menu-card { width: min(470px, 100%); text-align: left; }
+.menu-balance {
+  margin: 22px 0; padding: 16px 18px; border-radius: var(--radius);
+  background: rgba(0, 0, 0, .3); border: 1px solid rgba(212, 175, 106, .18);
+  display: grid; gap: 3px;
+}
+.menu-balance-label { font-size: 12px; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; }
+.menu-balance-value { font-size: 32px; color: var(--gold-bright); letter-spacing: .01em; }
+.menu-user { font-size: 12px; color: var(--muted); }
+.menu-nav { display: grid; gap: 10px; }
+.menu-btn {
+  display: grid; gap: 3px; text-align: left; padding: 15px 18px; cursor: pointer;
+  border-radius: var(--radius); border: 1px solid rgba(255, 255, 255, .1);
+  background: rgba(255, 255, 255, .04); transition: transform .14s, border-color .18s, background .18s;
+}
+.menu-btn:hover { transform: translateX(3px); border-color: rgba(212, 175, 106, .45); background: rgba(212, 175, 106, .08); }
+.menu-btn-title { font-size: 17px; font-weight: 650; }
+.menu-btn-sub { font-size: 12.5px; color: var(--muted); }
+.menu-btn-primary {
+  border-color: rgba(212, 175, 106, .5);
+  background: linear-gradient(180deg, rgba(212, 175, 106, .18), rgba(212, 175, 106, .06));
+}
+.menu-btn-primary .menu-btn-title { color: var(--gold-bright); }
+.menu-foot { display: flex; justify-content: space-between; margin-top: 18px; font-size: 12px; }
+
+/* Spiel-Grundgerüst */
+.screen-game { display: flex; flex-direction: column; height: 100dvh; }
+.topbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 10px 18px; border-bottom: 1px solid rgba(212, 175, 106, .16);
+  background: rgba(6, 17, 9, .6); backdrop-filter: blur(8px);
+}
+.topbar-brand { display: flex; align-items: center; gap: 9px; font-size: 13px; letter-spacing: .18em; color: var(--muted); }
+.icon-btn {
+  background: rgba(255, 255, 255, .05); border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 8px; padding: 7px 13px; cursor: pointer; font-size: 13px; transition: background .18s;
+}
+.icon-btn:hover { background: rgba(255, 255, 255, .1); }
+.topbar-right { display: flex; gap: 10px; }
+.stat {
+  display: grid; gap: 1px; padding: 6px 14px; border-radius: 10px;
+  background: rgba(0, 0, 0, .3); border: 1px solid rgba(255, 255, 255, .09); text-align: right;
+}
+.stat-label { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.stat-value { font-size: 17px; }
+.stat-balance { border-color: rgba(212, 175, 106, .35); }
+.stat-balance .stat-value { color: var(--gold-bright); }
+.stat-value.pulse { animation: pulseVal .5s ease; }
+@keyframes pulseVal { 0% { transform: scale(1); } 40% { transform: scale(1.14); } 100% { transform: scale(1); } }
+
+.game-layout {
+  flex: 1; min-height: 0; display: grid; gap: 16px; padding: 14px 18px;
+  grid-template-columns: minmax(0, 1fr) 306px;
+}
+/* Nur Positionierungskontext – KEIN place-items, sonst schrumpfen die
+   absolut positionierten Kinder auf Inhaltsbreite. */
+.stage { position: relative; min-height: 0; overflow: hidden; }
+.board-wrap, .wheel-wrap {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 10px;
+  max-width: 100%;
+}
+/* Die Bühne ist der Größen-Container: das Brett darf nie höher werden,
+   als hier Platz ist (cqh), und nie breiter als 1080px. */
+.board-wrap {
+  container-type: size;
+  transition: transform .6s cubic-bezier(.62, .02, .28, 1), opacity .45s ease;
+}
+.wheel-wrap { transform: translateX(60%) scale(.82); opacity: 0; pointer-events: none; }
+.stage.is-spinning .board-wrap { transform: translateX(-62%) scale(.82); opacity: 0; pointer-events: none; }
+.stage.is-spinning .wheel-wrap { transform: none; opacity: 1; pointer-events: auto; }
+
+/* ---------- 5 Roulette-Brett ---------- */
+.last-numbers { display: flex; gap: 6px; align-items: center; min-height: 26px; flex-wrap: wrap; justify-content: center; }
+.last-num {
+  width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 12px; font-weight: 700; border: 1px solid rgba(255, 255, 255, .16);
+  animation: fadeIn .3s both;
+}
+.last-num.red { background: var(--red); }
+.last-num.black { background: var(--black-cell); }
+.last-num.green { background: var(--felt-500); }
+
+.board-scroll {
+  flex: 0 1 auto; min-height: 0; width: 100%;
+  display: flex; align-items: center; justify-content: flex-start;
+}
+.board {
+  /* Breite ist durch Platz in der Breite UND in der Höhe begrenzt,
+     damit das Brett nie oben/unten abgeschnitten wird. */
+  width: min(100%, 1080px, calc(82cqh * 2.62));
+  margin-inline: auto;      /* zentriert, blockiert aber kein Scrollen bei Überbreite */
+  max-height: 100%;
+  aspect-ratio: 2.62;
+  display: grid;
+  grid-template-columns: 1.12fr repeat(12, 1fr) 1.18fr;
+  grid-template-rows: repeat(3, 1fr) .82fr .82fr;
+  gap: 4px;
+  padding: 12px;
+  border-radius: var(--radius);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .04), transparent 40%),
+    var(--felt-700);
+  border: 1px solid rgba(212, 175, 106, .3);
+  box-shadow: var(--shadow-lg), inset 0 0 60px rgba(0, 0, 0, .35);
+}
+
+.cell {
+  position: relative; border: 0; cursor: pointer; color: var(--text);
+  /* Ohne min-width:0 erzwingen Grid-Items ihre min-content-Breite und
+     sprengen das Raster auf schmalen Bildschirmen. */
+  min-width: 0; min-height: 0; overflow: hidden;
+  border-radius: 5px; display: grid; place-items: center;
+  font-weight: 650; font-size: clamp(10px, 1.15vw, 19px);
+  background: rgba(255, 255, 255, .05);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .13);
+  transition: filter .15s, box-shadow .15s, transform .1s;
+  user-select: none; -webkit-tap-highlight-color: transparent;
+}
+.cell .cell-text { white-space: nowrap; }
+.cell-text-sm { display: none; white-space: nowrap; }
+.cell:hover { filter: brightness(1.28); box-shadow: inset 0 0 0 1px var(--gold); z-index: 2; }
+.cell:active { transform: scale(.97); }
+.cell.red { background: linear-gradient(180deg, var(--red-bright), var(--red)); }
+.cell.black { background: linear-gradient(180deg, #24272c, var(--black-cell)); }
+.cell.green { background: linear-gradient(180deg, var(--felt-500), var(--felt-600)); }
+.cell-zero { grid-column: 1; grid-row: 1 / span 3; font-size: clamp(14px, 1.9vw, 30px); border-radius: 8px 5px 5px 8px; }
+.cell-outside { font-size: clamp(9px, .95vw, 14px); letter-spacing: .04em; text-transform: uppercase; }
+.cell-col { font-size: clamp(9px, .9vw, 13px); border-radius: 5px 8px 8px 5px; }
+.cell-swatch { display: grid; place-items: center; }
+.cell-swatch .swatch { width: clamp(16px, 1.7vw, 26px); height: clamp(16px, 1.7vw, 26px); transform: rotate(45deg); border-radius: 3px; }
+.cell-swatch.for-red .swatch { background: linear-gradient(180deg, var(--red-bright), var(--red)); box-shadow: 0 0 0 1px rgba(255, 255, 255, .25); }
+.cell-swatch.for-black .swatch { background: linear-gradient(180deg, #30343a, var(--black-cell)); box-shadow: 0 0 0 1px rgba(255, 255, 255, .25); }
+
+/* Gewinn-Hervorhebung nach dem Wurf */
+.cell.is-winner { animation: winGlow 1.6s ease-in-out 2; z-index: 3; }
+@keyframes winGlow {
+  0%, 100% { box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .13); }
+  50% { box-shadow: inset 0 0 0 2px var(--gold-bright), 0 0 22px rgba(242, 221, 171, .55); }
+}
+.board.is-locked .cell { cursor: default; }
+.board.is-locked .cell:hover { filter: none; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .13); }
+
+/* Jeton auf dem Feld */
+.field-chip {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  min-width: clamp(20px, 2vw, 30px); height: clamp(20px, 2vw, 30px); padding: 0 4px;
+  border-radius: 99px; display: grid; place-items: center;
+  font-size: clamp(8px, .82vw, 12px); font-weight: 800; color: #1d1403;
+  background: radial-gradient(circle at 35% 30%, var(--gold-bright), var(--gold) 60%, var(--gold-dim));
+  border: 2px dashed rgba(255, 255, 255, .65);
+  box-shadow: 0 3px 9px rgba(0, 0, 0, .6);
+  pointer-events: none; z-index: 4;
+  animation: chipDrop .25s cubic-bezier(.2, 1.5, .4, 1) both;
+}
+@keyframes chipDrop { from { transform: translate(-50%, -180%) scale(.5); opacity: 0; } to { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
+
+.board-hint { font-size: 12px; color: var(--muted); text-align: center; }
+.board-hint.has-action { padding-top: 4px; }
+
+/* ---------- 6 Seitenpanel ---------- */
+.sidepanel {
+  display: flex; flex-direction: column; gap: 12px; min-height: 0;
+  padding: 14px; border-radius: var(--radius);
+  background: linear-gradient(180deg, rgba(20, 57, 42, .5), rgba(8, 23, 15, .75));
+  border: 1px solid rgba(212, 175, 106, .2);
+}
+.panel-title { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); }
+.bet-table { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.bet-head, .bet-row, .bet-foot {
+  display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center;
+}
+.bet-head { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); padding-bottom: 7px; border-bottom: 1px solid rgba(255, 255, 255, .1); }
+.bet-body { flex: 1; overflow-y: auto; min-height: 60px; padding: 4px 0; }
+.bet-row {
+  padding: 7px 2px; font-size: 13.5px; border-bottom: 1px solid rgba(255, 255, 255, .05);
+  animation: fadeIn .2s both;
+}
+.bet-row .bet-name { display: flex; align-items: center; gap: 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bet-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.bet-dot.red { background: var(--red-bright); }
+.bet-dot.black { background: #3a3f46; }
+.bet-dot.green { background: var(--felt-500); }
+.bet-dot.gold { background: var(--gold); }
+.bet-amount { color: var(--gold-bright); }
+.bet-result { min-width: 62px; }
+.bet-result.win { color: var(--win); font-weight: 700; }
+.bet-result.loss { color: var(--loss); font-weight: 700; }
+.bet-result.pending { color: var(--muted); }
+.bet-row.is-win { background: linear-gradient(90deg, rgba(74, 222, 128, .13), transparent); }
+.bet-row.is-loss { opacity: .62; }
+.bet-empty { font-size: 13px; color: var(--muted); padding: 14px 2px; }
+.bet-foot { padding-top: 9px; border-top: 1px solid rgba(255, 255, 255, .12); font-size: 13.5px; font-weight: 650; }
+.bet-foot #bet-result-total.win { color: var(--win); }
+.bet-foot #bet-result-total.loss { color: var(--loss); }
+
+.panel-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+.panel-actions .btn { padding: 8px 4px; font-size: 12.5px; }
+.panel-stats { font-size: 11.5px; color: var(--muted); display: grid; gap: 3px; border-top: 1px solid rgba(255, 255, 255, .08); padding-top: 10px; }
+.panel-stats div { display: flex; justify-content: space-between; gap: 8px; }
+.panel-stats b { color: var(--text); font-weight: 600; }
+
+/* ---------- 7 Jetons ---------- */
+.chipbar {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  padding: 12px 18px; border-top: 1px solid rgba(212, 175, 106, .18);
+  background: rgba(6, 17, 9, .65); backdrop-filter: blur(8px);
+}
+.chips { display: flex; gap: 9px; flex-wrap: wrap; flex: 1; }
+.chip {
+  --c1: #d4af6a; --c2: #8d7442;
+  width: 50px; height: 50px; border-radius: 50%; cursor: pointer; flex: none;
+  border: 2px dashed rgba(255, 255, 255, .55);
+  background: radial-gradient(circle at 34% 28%, color-mix(in srgb, var(--c1) 82%, white), var(--c1) 55%, var(--c2));
+  color: #1b1304; font-weight: 800; font-size: 13px; white-space: nowrap;
+  display: grid; place-items: center; position: relative;
+  box-shadow: 0 5px 14px rgba(0, 0, 0, .5);
+  transition: transform .15s, box-shadow .15s, filter .15s;
+}
+.chip:hover:not(:disabled) { transform: translateY(-5px); }
+.chip:disabled { filter: grayscale(.75) brightness(.6); cursor: not-allowed; }
+.chip.is-active { transform: translateY(-7px); box-shadow: 0 0 0 3px var(--gold-bright), 0 10px 20px rgba(0, 0, 0, .55); }
+.chip-c1 { --c1: #e8ebee; --c2: #9aa2a9; }
+.chip-c2 { --c2: #7d5ba6; --c1: #b48ae0; }
+.chip-c5 { --c1: #e05a5f; --c2: #8e2126; }
+.chip-c10 { --c1: #5b9de0; --c2: #23507f; }
+.chip-c20 { --c1: #6cc48f; --c2: #24693f; }
+.chip-c50 { --c1: #eaa64c; --c2: #93601c; }
+.chip-c100 { --c1: #3f4750; --c2: #1a1e23; color: #f3efe4; font-size: 11.5px; }
+.chip-c200 { --c1: #d4af6a; --c2: #8d7442; font-size: 11.5px; }
+.chip-custom-val { --c1: #f2ddab; --c2: #b08d4d; font-size: 11.5px; }
+
+.chip-custom { display: flex; gap: 7px; align-items: center; }
+.chip-custom input {
+  width: 170px; padding: 9px 11px; border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, .35); border: 1px solid rgba(255, 255, 255, .13);
+}
+.chip-custom input:focus { border-color: var(--gold); box-shadow: var(--ring); outline: none; }
+
+.btn-ride {
+  display: grid; gap: 1px; padding: 11px 30px; min-width: 210px; text-align: center;
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+  color: #2a1e08; border: 1px solid var(--gold-bright); border-radius: var(--radius-sm);
+  font-weight: 800; letter-spacing: .12em; cursor: pointer;
+  box-shadow: 0 8px 24px rgba(212, 175, 106, .22);
+  transition: transform .14s, box-shadow .2s, opacity .2s;
+}
+.btn-ride span { font-size: 16px; }
+.btn-ride small { font-size: 10.5px; font-weight: 600; letter-spacing: .04em; opacity: .75; }
+.btn-ride:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(212, 175, 106, .38); }
+.btn-ride:disabled { opacity: .35; cursor: not-allowed; box-shadow: none; }
+.btn-ride.is-ready { animation: rideGlow 2.4s ease-in-out infinite; }
+@keyframes rideGlow {
+  0%, 100% { box-shadow: 0 8px 24px rgba(212, 175, 106, .22); }
+  50% { box-shadow: 0 8px 34px rgba(242, 221, 171, .5); }
+}
+
+/* ---------- 8 Rad ---------- */
+.wheel-holder { position: relative; display: grid; place-items: center; }
+#wheel-canvas {
+  width: min(62vh, 520px); height: min(62vh, 520px);
+  filter: drop-shadow(0 26px 46px rgba(0, 0, 0, .65));
+}
+.wheel-status { font-size: 13px; letter-spacing: .16em; text-transform: uppercase; color: var(--gold); min-height: 18px; }
+.result-badge {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  display: grid; justify-items: center; gap: 2px; padding: 18px 34px;
+  border-radius: var(--radius); background: rgba(6, 17, 9, .9);
+  border: 1px solid var(--gold); box-shadow: var(--shadow-lg);
+  animation: popIn .4s cubic-bezier(.2, 1.4, .4, 1) both; z-index: 5;
+}
+@keyframes popIn { from { transform: translate(-50%, -50%) scale(.7); opacity: 0; } to { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
+.result-caption { font-size: 10.5px; letter-spacing: .24em; color: var(--muted); }
+.result-number { font-size: 58px; font-weight: 800; line-height: 1; color: var(--gold-bright); }
+.result-color { font-size: 12px; letter-spacing: .16em; text-transform: uppercase; padding: 3px 12px; border-radius: 99px; }
+.result-color.red { background: var(--red); }
+.result-color.black { background: #2a2e34; }
+.result-color.green { background: var(--felt-500); }
+
+/* ---------- 9 Modals & Toasts ---------- */
+.modal {
+  position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 20px;
+  background: rgba(3, 8, 5, .72); backdrop-filter: blur(4px); animation: fadeIn .22s both;
+}
+.modal[hidden] { display: none; }
+.modal-card {
+  width: min(510px, 100%); max-height: 88dvh; overflow: auto; padding: 22px;
+  border-radius: 18px; border: 1px solid rgba(212, 175, 106, .3);
+  background: linear-gradient(180deg, rgba(20, 57, 42, .96), rgba(8, 23, 15, .98));
+  box-shadow: var(--shadow-lg); animation: popUp .28s cubic-bezier(.2, 1.2, .4, 1) both;
+}
+.modal-sm { width: min(380px, 100%); }
+.modal-sm p { color: var(--muted); font-size: 14px; margin: 10px 0 18px; }
+.modal-lead { color: var(--muted); font-size: 13.5px; margin: 8px 0 12px; }
+.export-box {
+  width: 100%; height: 220px; resize: vertical; margin-bottom: 14px;
+  padding: 11px 13px; border-radius: var(--radius-sm);
+  background: rgba(0, 0, 0, .38); border: 1px solid rgba(255, 255, 255, .12);
+  color: var(--text); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11.5px; line-height: 1.55;
+}
+.export-box:focus { border-color: var(--gold); box-shadow: var(--ring); outline: none; }
+@keyframes popUp { from { transform: translateY(18px) scale(.96); opacity: 0; } to { transform: none; opacity: 1; } }
+
+.summary-head { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+.summary-ball {
+  width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center; flex: none;
+  font-size: 22px; font-weight: 800; border: 2px solid var(--gold); box-shadow: 0 6px 18px rgba(0, 0, 0, .5);
+}
+.summary-ball.red { background: var(--red); }
+.summary-ball.black { background: var(--black-cell); }
+.summary-ball.green { background: var(--felt-500); }
+#summary-sub { font-size: 13px; color: var(--muted); margin-top: 3px; }
+.summary-list { display: grid; gap: 6px; margin-bottom: 16px; max-height: 34dvh; overflow: auto; }
+.summary-item {
+  display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center;
+  padding: 8px 11px; border-radius: 8px; font-size: 13.5px;
+  background: rgba(255, 255, 255, .04); border-left: 3px solid transparent;
+}
+.summary-item.win { border-left-color: var(--win); background: rgba(74, 222, 128, .1); }
+.summary-item.loss { border-left-color: var(--loss); background: rgba(248, 113, 122, .07); }
+.summary-item .amt { color: var(--muted); font-variant-numeric: tabular-nums; }
+.summary-item .net { font-weight: 700; font-variant-numeric: tabular-nums; }
+.summary-item.win .net { color: var(--win); }
+.summary-item.loss .net { color: var(--loss); }
+.summary-totals { display: grid; gap: 7px; padding: 13px 0; border-top: 1px solid rgba(255, 255, 255, .12); font-size: 13.5px; }
+.summary-totals > div { display: flex; justify-content: space-between; gap: 10px; }
+.summary-totals span { color: var(--muted); }
+.summary-net b { font-size: 17px; }
+.summary-net.win b { color: var(--win); }
+.summary-net.loss b { color: var(--loss); }
+.summary-balance b { color: var(--gold-bright); font-size: 17px; }
+.summary-actions { display: flex; gap: 9px; justify-content: flex-end; margin-top: 6px; }
+.summary-actions .btn { white-space: nowrap; }
+
+.toast-host { position: fixed; left: 50%; bottom: 108px; transform: translateX(-50%); display: grid; gap: 8px; z-index: 80; pointer-events: none; }
+.toast {
+  padding: 10px 18px; border-radius: 99px; font-size: 13.5px;
+  background: rgba(8, 23, 15, .95); border: 1px solid rgba(212, 175, 106, .35);
+  box-shadow: var(--shadow-md); animation: toastIn .25s ease both;
+}
+.toast.warn { border-color: rgba(217, 51, 58, .55); color: #ffc2c5; }
+.toast.good { border-color: rgba(74, 222, 128, .5); color: #bdf5d0; }
+.toast.is-out { animation: toastOut .3s ease forwards; }
+@keyframes toastIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes toastOut { to { opacity: 0; transform: translateY(-8px); } }
+
+/* ---------- 10 Unterseiten ---------- */
+#screen-shop, #screen-settings, #screen-privacy { min-height: 100dvh; padding: 26px 20px; display: grid; justify-items: center; align-content: start; }
+.page-card {
+  width: min(680px, 100%); padding: 26px;
+  background: linear-gradient(180deg, rgba(20, 57, 42, .7), rgba(8, 23, 15, .9));
+  border: 1px solid rgba(212, 175, 106, .2); border-radius: 20px; box-shadow: var(--shadow-md);
+}
+.page-head { display: flex; align-items: center; gap: 16px; margin-bottom: 18px; }
+.page-head h1 { font-size: 22px; letter-spacing: .06em; }
+.page-lead { color: var(--muted); font-size: 14px; margin-bottom: 20px; }
+.page-foot { margin-top: 18px; font-size: 12px; }
+.page-text h2 { font-size: 15px; color: var(--gold); margin: 22px 0 8px; letter-spacing: .04em; }
+.page-text p, .page-text li { color: #cfd8d2; font-size: 14px; line-height: 1.65; }
+.page-text ul { margin: 0 0 10px; padding-left: 20px; }
+
+.shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+.shop-item { padding: 14px; border-radius: var(--radius); background: rgba(255, 255, 255, .04); border: 1px solid rgba(255, 255, 255, .1); text-align: center; }
+.shop-item h3 { font-size: 14px; margin-top: 10px; }
+.shop-item p { font-size: 11.5px; color: var(--muted); margin-top: 3px; }
+.shop-item.is-locked { opacity: .5; }
+.shop-thumb { display: block; height: 64px; border-radius: 9px; border: 1px solid rgba(255, 255, 255, .12); }
+.thumb-classic { background: linear-gradient(135deg, var(--felt-500), var(--felt-800)); }
+.thumb-noir { background: linear-gradient(135deg, #2b2f35, #0b0d10); }
+.thumb-royal { background: linear-gradient(135deg, #6d1b2a, #2a0a11); }
+.thumb-ivory { background: linear-gradient(135deg, #e8e0cd, #a98c4f); }
+
+.setting-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 18px;
+  padding: 15px 0; border-bottom: 1px solid rgba(255, 255, 255, .08);
+}
+.setting-row h3 { font-size: 15px; }
+.setting-row p { font-size: 12.5px; color: var(--muted); margin-top: 3px; }
+.setting-row.danger h3 { color: #ff9ea2; }
+
+/* ---------- 11 Responsive ---------- */
+@media (max-width: 1080px) {
+  .game-layout { grid-template-columns: minmax(0, 1fr) 268px; }
+  #wheel-canvas { width: min(54vh, 400px); height: min(54vh, 400px); }
+}
+
+@media (max-width: 860px) {
+  .screen-game { height: auto; min-height: 100dvh; }
+  .game-layout { grid-template-columns: minmax(0, 1fr); }
+  .stage { min-height: 60vw; }
+  .board-wrap, .wheel-wrap { position: relative; inset: auto; width: 100%; }
+  /* Ohne feste Höhe darf hier kein Größen-Container aktiv sein,
+     sonst fällt die Höhe auf 0 zusammen. */
+  .board-wrap { container-type: normal; height: 100%; justify-content: center; }
+  .wheel-wrap { position: absolute; inset: 0; }
+  .board { aspect-ratio: 2.4; width: 100%; }
+  .sidepanel { max-height: 46vh; }
+  .chipbar { position: sticky; bottom: 0; }
+  .chip { width: 44px; height: 44px; font-size: 12px; }
+  .btn-ride { width: 100%; }
+  .topbar-brand { display: none; }
+}
+
+@media (max-width: 560px) {
+  /* Auf dem Telefon bleibt die Original-Anordnung erhalten, das Brett wird
+     dafür höher – so bleiben alle Felder sichtbar und gut treffbar. */
+  .stage { min-height: 74vw; }
+  .board { width: 100%; aspect-ratio: 1.62; padding: 7px; gap: 3px; }
+  .cell { font-size: 12px; }
+  .cell-zero { font-size: 19px; }
+  .cell-outside { font-size: 8.5px; letter-spacing: 0; }
+  .cell-col { font-size: 10px; letter-spacing: 0; }
+  .cell-col .cell-text { display: none; }
+  .cell-col .cell-text-sm { display: block; }
+  .cell-swatch .swatch { width: 15px; height: 15px; }
+  .field-chip { min-width: 20px; height: 20px; font-size: 8.5px; }
+  .board-hint { display: none; }
+  .board-hint.has-action { display: block; }   /* Notfall-Guthaben bleibt erreichbar */
+  .chipbar { background: rgba(6, 17, 9, .97); }
+  .chip-custom { flex: 1; }
+  .chip-custom input { flex: 1; width: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .12s !important; }
+}
+
+</style>
+</head>
+<body>
+
+<!-- ===================== Ladebildschirm ===================== -->
+<div id="boot" class="boot">
+  <div class="boot-wheel" aria-hidden="true"></div>
+  <p id="boot-text">Tisch wird vorbereitet …</p>
+</div>
+
+<!-- ===================== Anmeldung / Registrierung ===================== -->
+<section id="screen-auth" class="screen" hidden>
+  <div class="auth-card">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <div>
+        <h1 class="brand-name">GRAND VERT</h1>
+        <p class="brand-sub">Roulette · nur virtuelles Spielgeld</p>
+      </div>
+    </div>
+
+    <div class="tabs" role="tablist">
+      <button class="tab is-active" data-auth-tab="login" role="tab" aria-selected="true">Anmelden</button>
+      <button class="tab" data-auth-tab="register" role="tab" aria-selected="false">Registrieren</button>
+    </div>
+
+    <form id="auth-form" autocomplete="on" novalidate>
+      <label class="field">
+        <span class="field-label" id="auth-id-label">Benutzername</span>
+        <input id="auth-identifier" name="username" type="text" autocomplete="username" required />
+        <small class="field-hint" id="auth-id-hint"></small>
+      </label>
+
+      <label class="field">
+        <span class="field-label">Passwort</span>
+        <input id="auth-password" name="password" type="password" autocomplete="current-password" required minlength="6" />
+        <small class="field-hint">Mindestens 6 Zeichen</small>
+      </label>
+
+      <label class="field" id="auth-password2-field" hidden>
+        <span class="field-label">Passwort wiederholen</span>
+        <input id="auth-password2" type="password" autocomplete="new-password" />
+      </label>
+
+      <p class="form-error" id="auth-error" role="alert" hidden></p>
+
+      <button class="btn btn-gold btn-block" id="auth-submit" type="submit">Anmelden</button>
+    </form>
+
+    <p class="auth-foot">
+      <span id="auth-mode-note"></span>
+      <button class="linkish" data-nav="privacy" type="button">Datenschutz</button>
+    </p>
+  </div>
+</section>
+
+<!-- ===================== Hauptmenü ===================== -->
+<section id="screen-menu" class="screen" hidden>
+  <div class="menu-card">
+    <div class="brand brand-lg">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <div>
+        <h1 class="brand-name">GRAND VERT</h1>
+        <p class="brand-sub">Roulette · nur virtuelles Spielgeld</p>
+      </div>
+    </div>
+
+    <div class="menu-balance">
+      <span class="menu-balance-label">Guthaben</span>
+      <strong class="menu-balance-value" data-balance>—</strong>
+      <span class="menu-user">Angemeldet als <b data-username>—</b></span>
+    </div>
+
+    <nav class="menu-nav">
+      <button class="menu-btn menu-btn-primary" data-nav="game">
+        <span class="menu-btn-title">Spielen</span>
+        <span class="menu-btn-sub">Europäisches Roulette · Einzelzahl bis Außenwette</span>
+      </button>
+      <button class="menu-btn" data-nav="shop">
+        <span class="menu-btn-title">Shop</span>
+        <span class="menu-btn-sub">Jeton-Designs &amp; Tischfarben · in Arbeit</span>
+      </button>
+      <button class="menu-btn" data-nav="settings">
+        <span class="menu-btn-title">Einstellungen</span>
+        <span class="menu-btn-sub">Sound, Tempo, Konto &amp; Daten</span>
+      </button>
+    </nav>
+
+    <div class="menu-foot">
+      <button class="linkish" data-nav="privacy" type="button">Datenschutz</button>
+      <button class="linkish" id="btn-logout" type="button">Abmelden</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== Spiel ===================== -->
+<section id="screen-game" class="screen screen-game" hidden>
+  <header class="topbar">
+    <button class="icon-btn" data-nav="menu" title="Zurück zum Menü" aria-label="Zurück zum Menü">‹ Menü</button>
+    <div class="topbar-brand">
+      <span class="brand-mark brand-mark-sm" aria-hidden="true"></span>
+      <span>GRAND VERT</span>
+    </div>
+    <div class="topbar-right">
+      <div class="stat">
+        <span class="stat-label">Im Spiel</span>
+        <strong class="stat-value" id="staked-total">0 €</strong>
+      </div>
+      <div class="stat stat-balance">
+        <span class="stat-label">Guthaben</span>
+        <strong class="stat-value" data-balance>—</strong>
+      </div>
+    </div>
+  </header>
+
+  <main class="game-layout">
+    <!-- Bühne: Brett und Rad teilen sich denselben Bereich -->
+    <div class="stage" id="stage">
+      <div class="board-wrap" id="board-wrap">
+        <div class="last-numbers" id="last-numbers" aria-label="Letzte Zahlen"></div>
+        <div class="board-scroll">
+          <div class="board" id="board"><!-- wird von table.js erzeugt --></div>
+        </div>
+        <p class="board-hint" id="board-hint">Jeton wählen, dann auf ein Feld klicken. Rechtsklick entfernt einen Jeton.</p>
+      </div>
+
+      <div class="wheel-wrap" id="wheel-wrap" aria-hidden="true">
+        <div class="wheel-holder">
+          <canvas id="wheel-canvas" width="560" height="560"></canvas>
+        </div>
+        <div class="wheel-status" id="wheel-status">Kein Einsatz mehr …</div>
+        <div class="result-badge" id="result-badge" hidden>
+          <span class="result-caption">GEWINNZAHL</span>
+          <span class="result-number" id="result-number">0</span>
+          <span class="result-color" id="result-color">Grün</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Einsatzübersicht -->
+    <aside class="sidepanel">
+      <h2 class="panel-title">Einsätze</h2>
+      <div class="bet-table" role="table" aria-label="Aktuelle Einsätze">
+        <div class="bet-head" role="row">
+          <span role="columnheader">Einsatz</span>
+          <span role="columnheader" class="ta-right">Betrag</span>
+          <span role="columnheader" class="ta-right">Ergebnis</span>
+        </div>
+        <div class="bet-body" id="bet-list" role="rowgroup">
+          <p class="bet-empty" id="bet-empty">Noch keine Einsätze platziert.</p>
+        </div>
+        <div class="bet-foot">
+          <span>Gesamt</span>
+          <span class="ta-right" id="bet-total">0 €</span>
+          <span class="ta-right" id="bet-result-total">—</span>
+        </div>
+      </div>
+
+      <div class="panel-actions">
+        <button class="btn btn-ghost" id="btn-undo" type="button">Rückgängig</button>
+        <button class="btn btn-ghost" id="btn-clear" type="button">Löschen</button>
+        <button class="btn btn-ghost" id="btn-repeat" type="button">Wiederholen</button>
+      </div>
+
+      <div class="panel-stats" id="panel-stats"></div>
+    </aside>
+  </main>
+
+  <!-- Jetons + Rundenstart -->
+  <footer class="chipbar" id="chipbar">
+    <div class="chips" id="chips" role="radiogroup" aria-label="Einsatzwert"></div>
+    <div class="chip-custom">
+      <label for="custom-amount" class="sr-only">Eigener Einsatz</label>
+      <input id="custom-amount" type="number" min="1" step="1" placeholder="Eigener Betrag" inputmode="numeric" />
+      <button class="btn btn-ghost btn-sm" id="btn-custom" type="button">Setzen als Jeton</button>
+    </div>
+    <button class="btn btn-ride" id="btn-ride" type="button" disabled>
+      <span>LET IT RIDE</span>
+      <small id="ride-sub">Einsätze platzieren</small>
+    </button>
+  </footer>
+</section>
+
+<!-- ===================== Shop ===================== -->
+<section id="screen-shop" class="screen" hidden>
+  <div class="page-card">
+    <header class="page-head">
+      <button class="icon-btn" data-nav="menu">‹ Menü</button>
+      <h1>Shop</h1>
+    </header>
+    <p class="page-lead">
+      Hier entstehen kosmetische Extras: Jeton-Designs, Tischfarben und Rad-Varianten.
+      Alles ausschließlich für virtuelles Spielgeld – es gibt keine Echtgeld-Käufe.
+    </p>
+    <div class="shop-grid">
+      <article class="shop-item"><span class="shop-thumb thumb-classic"></span><h3>Classic Green</h3><p>Aktiv</p></article>
+      <article class="shop-item is-locked"><span class="shop-thumb thumb-noir"></span><h3>Noir</h3><p>Bald verfügbar</p></article>
+      <article class="shop-item is-locked"><span class="shop-thumb thumb-royal"></span><h3>Royal Bordeaux</h3><p>Bald verfügbar</p></article>
+      <article class="shop-item is-locked"><span class="shop-thumb thumb-ivory"></span><h3>Ivory &amp; Gold</h3><p>Bald verfügbar</p></article>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== Einstellungen ===================== -->
+<section id="screen-settings" class="screen" hidden>
+  <div class="page-card">
+    <header class="page-head">
+      <button class="icon-btn" data-nav="menu">‹ Menü</button>
+      <h1>Einstellungen</h1>
+    </header>
+
+    <div class="setting-row">
+      <div>
+        <h3>Sound</h3>
+        <p>Dezente Klicks beim Setzen und beim Lauf der Kugel.</p>
+      </div>
+      <label class="switch"><input type="checkbox" id="set-sound" /><span></span></label>
+    </div>
+
+    <div class="setting-row">
+      <div>
+        <h3>Animationstempo</h3>
+        <p>Wie lange die Kugel läuft.</p>
+      </div>
+      <select id="set-speed" class="select">
+        <option value="fast">Schnell</option>
+        <option value="normal">Normal</option>
+        <option value="cinematic">Ausführlich</option>
+      </select>
+    </div>
+
+    <div class="setting-row">
+      <div>
+        <h3>Konto</h3>
+        <p id="settings-account-info">—</p>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="btn-logout-2" type="button">Abmelden</button>
+    </div>
+
+    <div class="setting-row">
+      <div>
+        <h3>Meine Daten</h3>
+        <p>Spielstand und Statistik als JSON-Datei herunterladen.</p>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="btn-export" type="button">Exportieren</button>
+    </div>
+
+    <div class="setting-row danger">
+      <div>
+        <h3>Konto löschen</h3>
+        <p>Entfernt Konto, Guthaben und Statistik unwiderruflich.</p>
+      </div>
+      <button class="btn btn-danger btn-sm" id="btn-delete" type="button">Löschen</button>
+    </div>
+
+    <p class="page-foot"><button class="linkish" data-nav="privacy" type="button">Datenschutzerklärung ansehen</button></p>
+  </div>
+</section>
+
+<!-- ===================== Datenschutz ===================== -->
+<section id="screen-privacy" class="screen" hidden>
+  <div class="page-card page-text">
+    <header class="page-head">
+      <button class="icon-btn" id="privacy-back">‹ Zurück</button>
+      <h1>Datenschutz</h1>
+    </header>
+
+    <h2>Kurzfassung</h2>
+    <p>
+      Grand Vert ist ein Spiel mit <strong>ausschließlich virtuellem Spielgeld</strong>. Es gibt keine
+      Einzahlungen, keine Auszahlungen und keine Echtgeld-Käufe. Es werden keine Werbung, keine
+      Analyse-Dienste und keine Tracking-Cookies eingesetzt.
+    </p>
+
+    <h2>Welche Daten gespeichert werden</h2>
+    <ul>
+      <li>Anmeldedaten deines Kontos (Benutzername bzw. E-Mail-Adresse und ein <em>gehashtes</em> Passwort)</li>
+      <li>Dein virtuelles Guthaben</li>
+      <li>Spielstatistiken (Anzahl Runden, Gesamteinsatz, Gewinne, Verluste, höchster Gewinn)</li>
+      <li>Die letzten abgeschlossenen Runden (Gewinnzahl, Einsatz, Ergebnis)</li>
+      <li>Lokale Anzeigeeinstellungen wie Sound und Animationstempo</li>
+    </ul>
+    <p>Mehr wird nicht erhoben. Keine IP-Auswertung, kein Profiling, keine Weitergabe an Dritte.</p>
+
+    <h2>Wo die Daten liegen</h2>
+    <p id="privacy-storage-note">—</p>
+
+    <h2>Passwörter</h2>
+    <p>
+      Passwörter werden niemals im Klartext gespeichert. Im lokalen Modus wird PBKDF2-SHA256 mit
+      zufälligem Salt und 210.000 Iterationen verwendet; im Server-Modus übernimmt Supabase Auth
+      die sichere Speicherung.
+    </p>
+
+    <h2>Deine Rechte</h2>
+    <p>
+      Du kannst deine Daten jederzeit unter <em>Einstellungen → Meine Daten</em> exportieren und dein
+      Konto unter <em>Einstellungen → Konto löschen</em> vollständig entfernen. Beim Löschen werden
+      Konto, Guthaben, Statistik und Rundenverlauf unwiderruflich gelöscht.
+    </p>
+
+    <h2>Hinweis zum Spiel</h2>
+    <p>
+      Dieses Spiel bildet Glücksspielmechanik nach, verwendet aber kein echtes Geld. Der Hausvorteil
+      des europäischen Roulettes von 2,7 % ist im Spiel korrekt abgebildet – langfristig verliert man.
+      Genau das ist der Grund, warum hier nur virtuelle Chips im Umlauf sind.
+    </p>
+  </div>
+</section>
+
+<!-- ===================== Rundenauswertung ===================== -->
+<div class="modal" id="summary-modal" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="summary-title">
+    <div class="summary-head">
+      <span class="summary-ball" id="summary-ball">0</span>
+      <div>
+        <h2 id="summary-title">Runde ausgewertet</h2>
+        <p id="summary-sub">—</p>
+      </div>
+    </div>
+    <div class="summary-list" id="summary-list"></div>
+    <div class="summary-totals">
+      <div><span>Gesamteinsatz</span><b id="summary-staked">0 €</b></div>
+      <div><span>Rückzahlung</span><b id="summary-returned">0 €</b></div>
+      <div class="summary-net"><span>Runde gesamt</span><b id="summary-net">0 €</b></div>
+      <div class="summary-balance"><span>Neues Guthaben</span><b id="summary-balance">0 €</b></div>
+    </div>
+    <div class="summary-actions">
+      <button class="btn btn-ghost" id="summary-repeat" type="button">Einsätze wiederholen</button>
+      <button class="btn btn-gold" id="summary-next" type="button">Nächste Runde</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== Datenexport ===================== -->
+<div class="modal" id="export-modal" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="export-title">
+    <h2 id="export-title">Deine gespeicherten Daten</h2>
+    <p class="modal-lead">Das ist alles, was zu deinem Konto gespeichert ist.</p>
+    <textarea id="export-json" class="export-box" readonly spellcheck="false"></textarea>
+    <div class="summary-actions">
+      <button class="btn btn-ghost" id="export-copy" type="button">Kopieren</button>
+      <button class="btn btn-ghost" id="export-download" type="button">Als Datei speichern</button>
+      <button class="btn btn-gold" id="export-close" type="button">Schließen</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== Bestätigungsdialog ===================== -->
+<div class="modal" id="confirm-modal" hidden>
+  <div class="modal-card modal-sm" role="dialog" aria-modal="true">
+    <h2 id="confirm-title">Sicher?</h2>
+    <p id="confirm-text">—</p>
+    <div class="summary-actions">
+      <button class="btn btn-ghost" id="confirm-no" type="button">Abbrechen</button>
+      <button class="btn btn-danger" id="confirm-yes" type="button">Ja, löschen</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-host" class="toast-host" aria-live="polite"></div>
+
+<script>
+(function () {
+'use strict';
+/* ===== js/config.js ===== */
+/**
+ * Zentrale Konfiguration.
+ *
+ * SUPABASE: Leer lassen -> das Spiel nutzt lokale Browser-Accounts.
+ * Sobald hier eine URL und ein anon-Key eingetragen sind, laufen
+ * Registrierung, Login und Spielstand automatisch über Supabase.
+ * Siehe README.md und supabase/schema.sql.
+ */
+const SUPABASE_CONFIG = {
+  url: '',       // z. B. 'https://xxxxxxxxxxxx.supabase.co'
+  anonKey: ''    // der öffentliche "anon public" Key
+};
+
+const APP_CONFIG = {
+  /** Startguthaben für neue Konten */
+  startBalance: 2000,
+  /** Verfügbare Jeton-Werte */
+  chips: [1, 2, 5, 10, 20, 50, 100, 200],
+  /** Wie viele abgeschlossene Runden pro Konto gespeichert werden */
+  maxHistory: 50,
+  /** Notfall-Guthaben, wenn ein Spieler komplett pleite ist */
+  bailout: 500,
+  /** Maximaler Einsatz pro Feld (verhindert absurde Eingaben) */
+  maxBetPerField: 100000
+};
+
+/* ===== js/roulette.js ===== */
+/**
+ * Roulette-Kern: Radreihenfolge, Farben, Zufallssystem, Wettarten
+ * und Auszahlungsregeln nach europäischem (Single-Zero) Roulette.
+ *
+ * Diese Datei enthält KEINE DOM-Logik, damit sie isoliert testbar bleibt.
+ */
+
+/** Reihenfolge der Zahlen auf einem echten europäischen Rad (im Uhrzeigersinn ab 0). */
+const WHEEL_ORDER = [
+  0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23,
+  10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26
+];
+
+/** Rote Zahlen im europäischen Roulette. Alles andere (außer 0) ist schwarz. */
+const RED_NUMBERS = new Set([
+  1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36
+]);
+
+/** @returns {'green'|'red'|'black'} */
+function colorOf(n) {
+  if (n === 0) return 'green';
+  return RED_NUMBERS.has(n) ? 'red' : 'black';
+}
+
+const COLOR_LABEL = { green: 'Grün', red: 'Rot', black: 'Schwarz' };
+
+/* ------------------------------------------------------------------ */
+/* Zufallssystem                                                       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Gleichverteilte Zufallszahl 0–36 aus dem kryptografischen Zufallsgenerator
+ * des Browsers. Rejection-Sampling verhindert die Modulo-Verzerrung, die
+ * `crypto % 37` erzeugen würde.
+ */
+function spinNumber() {
+  const cryptoObj = globalThis.crypto;
+  if (cryptoObj && typeof cryptoObj.getRandomValues === 'function') {
+    const buf = new Uint32Array(1);
+    // 4294967295 = 2^32-1; größter durch 37 teilbarer Bereich darunter:
+    const limit = Math.floor(4294967296 / 37) * 37;
+    let value;
+    do {
+      cryptoObj.getRandomValues(buf);
+      value = buf[0];
+    } while (value >= limit);
+    return value % 37;
+  }
+  // Fallback (sollte in modernen Browsern nie greifen)
+  return Math.floor(Math.random() * 37);
+}
+
+/* ------------------------------------------------------------------ */
+/* Wettarten                                                           */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Jede Wette hat eine ID, ein Label für die Übersicht, eine Auszahlungsquote
+ * (x:1) und eine Prüffunktion gegen die Gewinnzahl.
+ *
+ * Wichtig: `payout` ist der GEWINN pro Einsatz-Euro. Bei einem Treffer
+ * bekommt der Spieler `Einsatz * (payout + 1)` zurück – also Gewinn PLUS
+ * den ursprünglichen Einsatz.
+ */
+const OUTSIDE_BETS = {
+  red:    { label: 'Rot',      short: 'ROT',    payout: 1, matches: (n) => n !== 0 && RED_NUMBERS.has(n) },
+  black:  { label: 'Schwarz',  short: 'SCHWARZ',payout: 1, matches: (n) => n !== 0 && !RED_NUMBERS.has(n) },
+  even:   { label: 'Gerade',   short: 'EVEN',   payout: 1, matches: (n) => n !== 0 && n % 2 === 0 },
+  odd:    { label: 'Ungerade', short: 'ODD',    payout: 1, matches: (n) => n !== 0 && n % 2 === 1 },
+  low:    { label: '1 – 18',   short: '1-18',   payout: 1, matches: (n) => n >= 1 && n <= 18 },
+  high:   { label: '19 – 36',  short: '19-36',  payout: 1, matches: (n) => n >= 19 && n <= 36 },
+  dozen1: { label: '1st 12',   short: '1st 12', payout: 2, matches: (n) => n >= 1 && n <= 12 },
+  dozen2: { label: '2nd 12',   short: '2nd 12', payout: 2, matches: (n) => n >= 13 && n <= 24 },
+  dozen3: { label: '3rd 12',   short: '3rd 12', payout: 2, matches: (n) => n >= 25 && n <= 36 },
+  // Kolonnen ("2 to 1"): col1 = 1,4,7…34 | col2 = 2,5,8…35 | col3 = 3,6,9…36
+  col1:   { label: 'Kolonne 1 (2 to 1)', short: '2:1 ▸ 1,4,7…', payout: 2, matches: (n) => n !== 0 && n % 3 === 1 },
+  col2:   { label: 'Kolonne 2 (2 to 1)', short: '2:1 ▸ 2,5,8…', payout: 2, matches: (n) => n !== 0 && n % 3 === 2 },
+  col3:   { label: 'Kolonne 3 (2 to 1)', short: '2:1 ▸ 3,6,9…', payout: 2, matches: (n) => n !== 0 && n % 3 === 0 }
+};
+
+/**
+ * Liefert die Definition zu einer Wett-ID.
+ * IDs sind entweder `straight:<n>` (Einzelzahl) oder ein Schlüssel aus OUTSIDE_BETS.
+ */
+function betInfo(id) {
+  if (id.startsWith('straight:')) {
+    const n = Number(id.slice(9));
+    return {
+      label: n === 0 ? 'Zahl 0' : `Zahl ${n}`,
+      short: String(n),
+      payout: 35,
+      matches: (win) => win === n,
+      number: n
+    };
+  }
+  const def = OUTSIDE_BETS[id];
+  if (!def) throw new Error(`Unbekannte Wette: ${id}`);
+  return def;
+}
+
+const OUTSIDE_BET_IDS = Object.keys(OUTSIDE_BETS);
+
+/* ------------------------------------------------------------------ */
+/* Auswertung                                                          */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Wertet eine einzelne Wette gegen die Gewinnzahl aus.
+ * @param {{id:string, amount:number}} bet
+ * @param {number} winning
+ * @returns {{id:string, label:string, amount:number, won:boolean, payout:number, net:number}}
+ *   payout = Rückzahlung ans Guthaben (Einsatz + Gewinn), net = Gewinn/Verlust
+ */
+function resolveBet(bet, winning) {
+  const info = betInfo(bet.id);
+  const won = info.matches(winning);
+  return {
+    id: bet.id,
+    label: info.label,
+    amount: bet.amount,
+    won,
+    payout: won ? bet.amount * (info.payout + 1) : 0,
+    net: won ? bet.amount * info.payout : -bet.amount
+  };
+}
+
+/**
+ * Wertet eine komplette Runde aus.
+ * @param {Array<{id:string, amount:number}>} bets
+ * @param {number} winning
+ */
+function resolveRound(bets, winning) {
+  const results = bets.map((b) => resolveBet(b, winning));
+  const staked = results.reduce((s, r) => s + r.amount, 0);
+  const returned = results.reduce((s, r) => s + r.payout, 0);
+  return {
+    winning,
+    color: colorOf(winning),
+    results,
+    staked,          // war bereits beim Setzen vom Guthaben abgezogen
+    returned,        // wird dem Guthaben wieder gutgeschrieben
+    net: returned - staked
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* Formatierung                                                        */
+/* ------------------------------------------------------------------ */
+
+const nf = new Intl.NumberFormat('de-DE', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+
+/** 2000 -> "2.000 €" */
+function money(value) {
+  return `${nf.format(value)} €`;
+}
+
+/** +40 -> "+40 €", -10 -> "-10 €" */
+function signedMoney(value) {
+  const sign = value > 0 ? '+' : value < 0 ? '−' : '±';
+  return `${sign}${nf.format(Math.abs(value))} €`;
+}
+
+/* ===== js/storage.js ===== */
+/**
+ * Account- und Speicherschicht.
+ *
+ * Es gibt zwei austauschbare Backends hinter einer gemeinsamen API:
+ *
+ *  - "local":    Konten liegen im localStorage des Browsers. Passwörter werden
+ *                mit PBKDF2-SHA256 (210.000 Iterationen, zufälliges Salt)
+ *                gehasht – niemals im Klartext gespeichert.
+ *  - "supabase": Echte Server-Accounts. Authentifizierung übernimmt komplett
+ *                Supabase Auth, der Spielstand liegt in der Tabelle `profiles`
+ *                mit Row-Level-Security. Wird automatisch aktiv, sobald in
+ *                js/config.js URL + anon-Key eingetragen sind.
+ *
+ * Gemeinsame API:
+ *   store.init(), store.mode, store.identifierLabel
+ *   store.register(id, pw), store.login(id, pw), store.logout()
+ *   store.restoreSession()      -> {user, profile} | null
+ *   store.saveProfile(profile), store.deleteAccount(), store.exportData()
+ */
+
+
+const LS_USERS = 'gv_roulette_users_v1';
+const LS_SESSION = 'gv_roulette_session_v1';
+const LS_SETTINGS = 'gv_roulette_settings_v1';
+
+/** Frisches Profil für ein neues Konto. */
+function freshProfile() {
+  return {
+    balance: APP_CONFIG.startBalance,
+    stats: {
+      rounds: 0,
+      wagered: 0,     // insgesamt gesetzt
+      won: 0,         // Summe aller Gewinne (netto, nur Gewinnrunden)
+      lost: 0,        // Summe aller Verluste (netto, nur Verlustrunden)
+      biggestWin: 0,
+      bestBalance: APP_CONFIG.startBalance,
+      bailouts: 0
+    },
+    history: [],      // letzte N abgeschlossene Runden
+    updatedAt: new Date().toISOString()
+  };
+}
+
+/** Fehlende Felder ergänzen, damit ältere Spielstände nicht kaputtgehen. */
+function normalizeProfile(raw) {
+  const base = freshProfile();
+  if (!raw || typeof raw !== 'object') return base;
+  return {
+    balance: Number.isFinite(Number(raw.balance)) ? Math.max(0, Number(raw.balance)) : base.balance,
+    stats: { ...base.stats, ...(raw.stats || {}) },
+    history: Array.isArray(raw.history) ? raw.history.slice(0, APP_CONFIG.maxHistory) : [],
+    updatedAt: raw.updatedAt || base.updatedAt
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* Passwort-Hashing für den lokalen Modus                              */
+/* ------------------------------------------------------------------ */
+
+const PBKDF2_ITERATIONS = 210000;
+
+function toHex(buffer) {
+  return [...new Uint8Array(buffer)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function randomSalt() {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return toHex(bytes.buffer);
+}
+
+async function hashPassword(password, saltHex, iterations = PBKDF2_ITERATIONS) {
+  if (!crypto?.subtle) {
+    throw new Error(
+      'Dein Browser stellt die Krypto-Funktionen nicht bereit. ' +
+      'Bitte öffne die Seite über http://localhost oder https:// statt per Doppelklick.'
+    );
+  }
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveBits']);
+  const bits = await crypto.subtle.deriveBits(
+    { name: 'PBKDF2', salt: enc.encode(saltHex), iterations, hash: 'SHA-256' },
+    key,
+    256
+  );
+  return toHex(bits);
+}
+
+/** Zeitkonstanter Vergleich, damit die Laufzeit nichts über das Passwort verrät. */
+function safeEqual(a, b) {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* Lokales Backend                                                     */
+/* ------------------------------------------------------------------ */
+
+function readUsers() {
+  try {
+    return JSON.parse(localStorage.getItem(LS_USERS) || '{}');
+  } catch {
+    return {};
+  }
+}
+
+function writeUsers(users) {
+  localStorage.setItem(LS_USERS, JSON.stringify(users));
+}
+
+const localBackend = {
+  mode: 'local',
+  identifierLabel: 'Benutzername',
+  identifierHint: '3–20 Zeichen, Buchstaben/Zahlen/_-',
+  identifierType: 'text',
+
+  async init() {
+    if (typeof localStorage === 'undefined') {
+      throw new Error('Dieser Browser erlaubt keinen lokalen Speicher.');
+    }
+  },
+
+  validateIdentifier(name) {
+    const value = String(name || '').trim();
+    if (!/^[\w.-]{3,20}$/.test(value)) {
+      return 'Benutzername: 3–20 Zeichen, nur Buchstaben, Zahlen, . _ -';
+    }
+    return null;
+  },
+
+  async register(name, password) {
+    const key = String(name).trim().toLowerCase();
+    const users = readUsers();
+    if (users[key]) throw new Error('Dieser Benutzername ist bereits vergeben.');
+    const salt = randomSalt();
+    const hash = await hashPassword(password, salt);
+    users[key] = {
+      username: String(name).trim(),
+      salt,
+      hash,
+      iterations: PBKDF2_ITERATIONS,
+      createdAt: new Date().toISOString(),
+      profile: freshProfile()
+    };
+    writeUsers(users);
+    localStorage.setItem(LS_SESSION, key);
+    return { user: { id: key, name: users[key].username }, profile: normalizeProfile(users[key].profile) };
+  },
+
+  async login(name, password) {
+    const key = String(name).trim().toLowerCase();
+    const users = readUsers();
+    const record = users[key];
+    if (!record) throw new Error('Benutzername oder Passwort ist falsch.');
+    const hash = await hashPassword(password, record.salt, record.iterations || PBKDF2_ITERATIONS);
+    if (!safeEqual(hash, record.hash)) throw new Error('Benutzername oder Passwort ist falsch.');
+    localStorage.setItem(LS_SESSION, key);
+    return { user: { id: key, name: record.username }, profile: normalizeProfile(record.profile) };
+  },
+
+  async restoreSession() {
+    const key = localStorage.getItem(LS_SESSION);
+    if (!key) return null;
+    const record = readUsers()[key];
+    if (!record) {
+      localStorage.removeItem(LS_SESSION);
+      return null;
+    }
+    return { user: { id: key, name: record.username }, profile: normalizeProfile(record.profile) };
+  },
+
+  async logout() {
+    localStorage.removeItem(LS_SESSION);
+  },
+
+  async saveProfile(userId, profile) {
+    const users = readUsers();
+    if (!users[userId]) return;
+    users[userId].profile = { ...profile, updatedAt: new Date().toISOString() };
+    writeUsers(users);
+  },
+
+  async deleteAccount(userId) {
+    const users = readUsers();
+    delete users[userId];
+    writeUsers(users);
+    localStorage.removeItem(LS_SESSION);
+  }
+};
+
+/* ------------------------------------------------------------------ */
+/* Supabase-Backend                                                    */
+/* ------------------------------------------------------------------ */
+
+const supabaseBackend = {
+  mode: 'supabase',
+  identifierLabel: 'E-Mail-Adresse',
+  identifierHint: 'Wird nur für Login und Passwort-Reset genutzt',
+  identifierType: 'email',
+  client: null,
+
+  async init() {
+    // SDK wird erst geladen, wenn Supabase auch wirklich konfiguriert ist.
+    const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2.45.4');
+    this.client = createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey, {
+      auth: { persistSession: true, autoRefreshToken: true }
+    });
+  },
+
+  validateIdentifier(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim())
+      ? null
+      : 'Bitte gib eine gültige E-Mail-Adresse ein.';
+  },
+
+  /** Profil laden – oder anlegen, falls der DB-Trigger noch nicht gelaufen ist. */
+  async _fetchProfile(userId) {
+    const { data, error } = await this.client
+      .from('profiles')
+      .select('balance, stats, history')
+      .eq('id', userId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (data) return normalizeProfile(data);
+
+    const profile = freshProfile();
+    const { error: insertError } = await this.client.from('profiles').insert({
+      id: userId,
+      balance: profile.balance,
+      stats: profile.stats,
+      history: profile.history
+    });
+    if (insertError) throw new Error(insertError.message);
+    return profile;
+  },
+
+  async register(email, password) {
+    const { data, error } = await this.client.auth.signUp({ email: String(email).trim(), password });
+    if (error) throw new Error(translateAuthError(error.message));
+    if (!data.session) {
+      throw new Error(
+        'Konto angelegt. Bitte bestätige zuerst die E-Mail-Adresse und melde dich anschließend an.'
+      );
+    }
+    return { user: { id: data.user.id, name: data.user.email }, profile: await this._fetchProfile(data.user.id) };
+  },
+
+  async login(email, password) {
+    const { data, error } = await this.client.auth.signInWithPassword({
+      email: String(email).trim(),
+      password
+    });
+    if (error) throw new Error(translateAuthError(error.message));
+    return { user: { id: data.user.id, name: data.user.email }, profile: await this._fetchProfile(data.user.id) };
+  },
+
+  async restoreSession() {
+    const { data } = await this.client.auth.getSession();
+    if (!data.session) return null;
+    const user = data.session.user;
+    return { user: { id: user.id, name: user.email }, profile: await this._fetchProfile(user.id) };
+  },
+
+  async logout() {
+    await this.client.auth.signOut();
+  },
+
+  async saveProfile(userId, profile) {
+    const { error } = await this.client
+      .from('profiles')
+      .update({
+        balance: profile.balance,
+        stats: profile.stats,
+        history: profile.history,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', userId);
+    if (error) throw new Error(error.message);
+  },
+
+  async deleteAccount() {
+    // Löscht Auth-Benutzer + Profil serverseitig (SECURITY DEFINER Funktion).
+    const { error } = await this.client.rpc('delete_own_account');
+    if (error) throw new Error(error.message);
+    await this.client.auth.signOut();
+  }
+};
+
+function translateAuthError(message) {
+  const m = String(message).toLowerCase();
+  if (m.includes('invalid login')) return 'E-Mail oder Passwort ist falsch.';
+  if (m.includes('already registered')) return 'Für diese E-Mail existiert bereits ein Konto.';
+  if (m.includes('password')) return 'Das Passwort erfüllt die Anforderungen nicht (mind. 6 Zeichen).';
+  return message;
+}
+
+/* ------------------------------------------------------------------ */
+/* Öffentliche Fassade                                                 */
+/* ------------------------------------------------------------------ */
+
+const supabaseConfigured = Boolean(SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey);
+
+const store = {
+  backend: supabaseConfigured ? supabaseBackend : localBackend,
+  userId: null,
+  userName: null,
+
+  get mode() { return this.backend.mode; },
+  get identifierLabel() { return this.backend.identifierLabel; },
+  get identifierHint() { return this.backend.identifierHint; },
+  get identifierType() { return this.backend.identifierType; },
+
+  async init() {
+    try {
+      await this.backend.init();
+    } catch (err) {
+      // Supabase nicht erreichbar -> lieber lokal weiterspielen als Totalausfall.
+      if (this.backend.mode === 'supabase') {
+        console.warn('Supabase konnte nicht geladen werden, wechsle auf lokale Konten.', err);
+        this.backend = localBackend;
+        await this.backend.init();
+        this.fallbackReason = 'Supabase ist gerade nicht erreichbar – es werden lokale Konten genutzt.';
+      } else {
+        throw err;
+      }
+    }
+  },
+
+  validateIdentifier(value) { return this.backend.validateIdentifier(value); },
+
+  async register(identifier, password) {
+    const session = await this.backend.register(identifier, password);
+    this.userId = session.user.id;
+    this.userName = session.user.name;
+    return session;
+  },
+
+  async login(identifier, password) {
+    const session = await this.backend.login(identifier, password);
+    this.userId = session.user.id;
+    this.userName = session.user.name;
+    return session;
+  },
+
+  async restoreSession() {
+    const session = await this.backend.restoreSession();
+    if (session) {
+      this.userId = session.user.id;
+      this.userName = session.user.name;
+    }
+    return session;
+  },
+
+  async logout() {
+    await this.backend.logout();
+    this.userId = null;
+    this.userName = null;
+  },
+
+  async saveProfile(profile) {
+    if (!this.userId) return;
+    await this.backend.saveProfile(this.userId, profile);
+  },
+
+  async deleteAccount() {
+    if (!this.userId) return;
+    await this.backend.deleteAccount(this.userId);
+    this.userId = null;
+    this.userName = null;
+  }
+};
+
+/* ------------------------------------------------------------------ */
+/* Einstellungen (rein lokal, kein Personenbezug)                      */
+/* ------------------------------------------------------------------ */
+
+const defaultSettings = { sound: true, speed: 'normal', confirmBets: false };
+
+function loadSettings() {
+  try {
+    return { ...defaultSettings, ...JSON.parse(localStorage.getItem(LS_SETTINGS) || '{}') };
+  } catch {
+    return { ...defaultSettings };
+  }
+}
+
+function saveSettings(settings) {
+  try {
+    localStorage.setItem(LS_SETTINGS, JSON.stringify(settings));
+  } catch { /* Speicher blockiert – Einstellungen gelten dann nur für diese Sitzung */ }
+}
+
+/* ===== js/bets.js ===== */
+/**
+ * Verwaltet die Einsätze der laufenden Runde.
+ *
+ * Wichtig für die Guthaben-Logik: Einsätze werden bereits beim Platzieren
+ * vom Guthaben abgezogen (siehe app.js). Dieses Modul kennt nur die Beträge
+ * pro Feld und die Reihenfolge für "Rückgängig".
+ */
+
+
+
+function createLedger() {
+  /** @type {Map<string, number>} Feld-ID -> gesetzter Betrag */
+  const map = new Map();
+  /** @type {Array<{id:string, amount:number}>} Reihenfolge fürs Rückgängigmachen */
+  const stack = [];
+
+  return {
+    get map() { return map; },
+
+    /** @returns {number} tatsächlich gesetzter Betrag (0 = abgelehnt) */
+    add(id, amount, available) {
+      const value = Math.floor(Number(amount));
+      if (!Number.isFinite(value) || value <= 0) return 0;
+      if (value > available) return 0;                       // nie mehr als das Guthaben
+      const current = map.get(id) || 0;
+      if (current + value > APP_CONFIG.maxBetPerField) return 0;
+      map.set(id, current + value);
+      stack.push({ id, amount: value });
+      return value;
+    },
+
+    /** Macht den letzten Einsatz rückgängig. @returns {{id,amount}|null} */
+    undo() {
+      const last = stack.pop();
+      if (!last) return null;
+      const rest = (map.get(last.id) || 0) - last.amount;
+      if (rest > 0) map.set(last.id, rest);
+      else map.delete(last.id);
+      return last;
+    },
+
+    /** Entfernt den letzten Einsatz auf genau diesem Feld (Rechtsklick). */
+    removeFrom(id) {
+      for (let i = stack.length - 1; i >= 0; i--) {
+        if (stack[i].id !== id) continue;
+        const [entry] = stack.splice(i, 1);
+        const rest = (map.get(id) || 0) - entry.amount;
+        if (rest > 0) map.set(id, rest);
+        else map.delete(id);
+        return entry;
+      }
+      return null;
+    },
+
+    /** Leert den Tisch. @returns {number} zurückgegebener Gesamtbetrag */
+    clear() {
+      const total = this.total();
+      map.clear();
+      stack.length = 0;
+      return total;
+    },
+
+    total() {
+      let sum = 0;
+      for (const v of map.values()) sum += v;
+      return sum;
+    },
+
+    count() { return map.size; },
+
+    /** Einsätze als Liste – sortiert: Außenwetten zuerst, dann Zahlen aufsteigend. */
+    entries() {
+      return [...map.entries()]
+        .map(([id, amount]) => ({ id, amount, info: betInfo(id) }))
+        .sort((a, b) => {
+          const an = a.info.number, bn = b.info.number;
+          if (an === undefined && bn === undefined) return a.info.label.localeCompare(b.info.label);
+          if (an === undefined) return -1;
+          if (bn === undefined) return 1;
+          return an - bn;
+        });
+    },
+
+    /** Momentaufnahme für "Einsätze wiederholen". */
+    snapshot() {
+      return stack.map((e) => ({ ...e }));
+    },
+
+    /** Setzt eine Momentaufnahme wieder auf den Tisch, soweit das Guthaben reicht. */
+    restore(snapshot, available) {
+      let spent = 0;
+      for (const entry of snapshot) {
+        const placed = this.add(entry.id, entry.amount, available - spent);
+        spent += placed;
+      }
+      return spent;
+    }
+  };
+}
+
+/* ===== js/table.js ===== */
+/**
+ * Baut das europäische Roulette-Brett als CSS-Grid auf und hält die
+ * Jeton-Darstellung auf den Feldern aktuell.
+ *
+ * Rasteraufbau (14 Spalten × 5 Zeilen):
+ *   Spalte 1        -> 0 (über drei Zeilen)
+ *   Spalte 2–13     -> die Zahlen 1–36, spaltenweise von unten nach oben
+ *   Spalte 14       -> die drei "2 to 1"-Kolonnenwetten
+ *   Zeile 4         -> 1st 12 / 2nd 12 / 3rd 12
+ *   Zeile 5         -> 1-18 / EVEN / ROT / SCHWARZ / ODD / 19-36
+ */
+
+
+const nfShort = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 });
+
+/** Kompakte Beschriftung für den Jeton auf dem Feld: 1250 -> "1,3k" */
+function chipLabel(value) {
+  if (value >= 10000) return `${Math.round(value / 1000)}k`;
+  if (value >= 1000) return `${(value / 1000).toFixed(1).replace('.', ',')}k`;
+  return nfShort.format(value);
+}
+
+function makeCell({ id, text, className = '', col, row, colSpan = 1, rowSpan = 1, aria }) {
+  const el = document.createElement('button');
+  el.type = 'button';
+  el.className = `cell ${className}`.trim();
+  el.dataset.bet = id;
+  el.style.gridColumn = `${col} / span ${colSpan}`;
+  el.style.gridRow = `${row} / span ${rowSpan}`;
+  el.setAttribute('aria-label', aria || text);
+  if (text) {
+    const span = document.createElement('span');
+    span.className = 'cell-text';
+    span.textContent = text;
+    el.appendChild(span);
+  }
+  return el;
+}
+
+/**
+ * Erzeugt das Brett.
+ * @param {HTMLElement} boardEl
+ * @param {(betId:string, ev:MouseEvent)=>void} onPlace   Linksklick
+ * @param {(betId:string)=>void} onRemove                 Rechtsklick
+ */
+function buildBoard(boardEl, onPlace, onRemove) {
+  boardEl.innerHTML = '';
+  const frag = document.createDocumentFragment();
+
+  // 0 – links, über alle drei Zahlenzeilen
+  frag.appendChild(makeCell({
+    id: 'straight:0', text: '0', className: 'green cell-zero', col: 1, row: 1, rowSpan: 3, aria: 'Zahl 0'
+  }));
+
+  // 1–36
+  for (let n = 1; n <= 36; n++) {
+    const col = 2 + Math.floor((n - 1) / 3);   // 12 Zahlenspalten
+    const row = 3 - ((n - 1) % 3);             // unten 1,4,7… / oben 3,6,9…
+    frag.appendChild(makeCell({
+      id: `straight:${n}`, text: String(n), className: colorOf(n), col, row, aria: `Zahl ${n}`
+    }));
+  }
+
+  // "2 to 1" – Kolonnen. Zeile 1 = Zahlen 3,6,9… (col3) usw.
+  const columnBets = [['col3', 1], ['col2', 2], ['col1', 3]];
+  for (const [id, row] of columnBets) {
+    const cell = makeCell({
+      id, text: '2 to 1', className: 'green cell-col', col: 14, row, aria: betInfo(id).label
+    });
+    // Kurzform für schmale Bildschirme (per CSS eingeblendet)
+    const short = document.createElement('span');
+    short.className = 'cell-text-sm';
+    short.textContent = '2:1';
+    cell.appendChild(short);
+    frag.appendChild(cell);
+  }
+
+  // Dutzende
+  const dozens = [['dozen1', '1st 12', 2], ['dozen2', '2nd 12', 6], ['dozen3', '3rd 12', 10]];
+  for (const [id, text, col] of dozens) {
+    frag.appendChild(makeCell({ id, text, className: 'green cell-outside', col, row: 4, colSpan: 4 }));
+  }
+
+  // Einfache Chancen
+  const evens = [
+    ['low', '1 – 18', 2], ['even', 'EVEN', 4], ['red', '', 6],
+    ['black', '', 8], ['odd', 'ODD', 10], ['high', '19 – 36', 12]
+  ];
+  for (const [id, text, col] of evens) {
+    const isColor = id === 'red' || id === 'black';
+    const cell = makeCell({
+      id, text,
+      className: `green cell-outside${isColor ? ` cell-swatch for-${id}` : ''}`,
+      col, row: 5, colSpan: 2,
+      aria: betInfo(id).label
+    });
+    if (isColor) {
+      const sw = document.createElement('span');
+      sw.className = 'swatch';
+      cell.appendChild(sw);
+    }
+    frag.appendChild(cell);
+  }
+
+  boardEl.appendChild(frag);
+
+  boardEl.addEventListener('click', (ev) => {
+    const cell = ev.target.closest('.cell');
+    if (!cell || boardEl.classList.contains('is-locked')) return;
+    onPlace(cell.dataset.bet, ev);
+  });
+
+  // Rechtsklick nimmt einen Einsatz wieder weg
+  boardEl.addEventListener('contextmenu', (ev) => {
+    const cell = ev.target.closest('.cell');
+    if (!cell) return;
+    ev.preventDefault();
+    if (boardEl.classList.contains('is-locked')) return;
+    onRemove(cell.dataset.bet);
+  });
+}
+
+/** Zeichnet die Jetons auf den Feldern anhand der aktuellen Einsätze neu. */
+function renderBoardChips(boardEl, betMap) {
+  for (const cell of boardEl.querySelectorAll('.cell')) {
+    const amount = betMap.get(cell.dataset.bet) || 0;
+    let chip = cell.querySelector('.field-chip');
+    if (!amount) {
+      chip?.remove();
+      continue;
+    }
+    if (!chip) {
+      chip = document.createElement('span');
+      chip.className = 'field-chip';
+      cell.appendChild(chip);
+    }
+    const label = chipLabel(amount);
+    if (chip.textContent !== label) chip.textContent = label;
+    chip.title = `${amount} €`;
+  }
+}
+
+/** Hebt nach dem Wurf das Gewinnfeld (und die passenden Außenwetten) hervor. */
+function highlightWinner(boardEl, winning) {
+  clearHighlight(boardEl);
+  for (const cell of boardEl.querySelectorAll('.cell')) {
+    if (betInfo(cell.dataset.bet).matches(winning)) cell.classList.add('is-winner');
+  }
+}
+
+function clearHighlight(boardEl) {
+  for (const cell of boardEl.querySelectorAll('.is-winner')) cell.classList.remove('is-winner');
+}
+
+/** Zeigt die zuletzt gefallenen Zahlen über dem Brett. */
+function renderLastNumbers(el, history) {
+  el.innerHTML = '';
+  for (const n of history.slice(0, 12)) {
+    const dot = document.createElement('span');
+    dot.className = `last-num ${colorOf(n)}`;
+    dot.textContent = String(n);
+    el.appendChild(dot);
+  }
+}
+
+/* ===== js/wheel.js ===== */
+/**
+ * Roulette-Rad auf einem Canvas: Zeichnung + Animation.
+ *
+ * Kernidee: Die Gewinnzahl steht VOR der Animation fest (roulette.js →
+ * spinNumber()). Diese Datei berechnet die Endwinkel so, dass die Kugel exakt
+ * in der Tasche dieser Zahl zum Stehen kommt. Die Animation kann das Ergebnis
+ * also nicht verändern – sie stellt es nur dar.
+ */
+
+
+const TAU = Math.PI * 2;
+const SEG = TAU / WHEEL_ORDER.length;              // Winkel pro Tasche
+
+/** Lokaler Mittelpunktwinkel der Tasche mit Index i (Index 0 liegt oben). */
+const pocketAngle = (i) => (i + 0.5) * SEG - Math.PI / 2;
+
+const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+const easeOutQuart = (t) => 1 - Math.pow(1 - t, 4);
+const easeInOut = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+
+function createWheel(canvas, { onTick } = {}) {
+  const ctx = canvas.getContext('2d');
+
+  let size = 0;             // Kantenlänge in CSS-Pixeln
+  let R = 0;                // Außenradius
+  let running = false;
+  let rafId = null;
+
+  // Darstellungszustand
+  let wheelAngle = 0;
+  let ballAngle = -Math.PI / 2;
+  let ballRadius = 0;
+  let ballVisible = false;
+
+  // Phasen: null = nur Ruhelauf, sonst laufender Wurf
+  let spin = null;
+  let settledIndex = null;  // Tasche, in der die Kugel liegt
+  let idleStart = 0;
+  let idleWheel = 0;
+  let lastTickPocket = -1;
+
+  /* ------------------------- Größe / Retina ------------------------- */
+  function resize() {
+    const rect = canvas.getBoundingClientRect();
+    const css = Math.max(1, Math.min(rect.width || 400, rect.height || 400));
+    const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+    canvas.width = Math.round(css * dpr);
+    canvas.height = Math.round(css * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    size = css;
+    R = css / 2 - 2;
+    if (!spin) ballRadius = R * 0.815;
+  }
+
+  if (typeof ResizeObserver !== 'undefined') new ResizeObserver(resize).observe(canvas);
+  window.addEventListener('resize', resize);
+
+  /* ------------------------------ Zeichnen ------------------------------ */
+  function draw() {
+    if (!size) return;
+    const c = size / 2;
+    const rTrack = R * 0.815;   // Kugellaufbahn
+    const rOuter = R * 0.755;   // Außenkante der Taschen
+    const rInner = R * 0.50;    // Innenkante der Taschen
+    const rText = R * 0.663;
+
+    ctx.clearRect(0, 0, size, size);
+    ctx.save();
+    ctx.translate(c, c);
+
+    // Außenschale
+    const bowl = ctx.createRadialGradient(-R * 0.3, -R * 0.35, R * 0.15, 0, 0, R);
+    bowl.addColorStop(0, '#2c2118');
+    bowl.addColorStop(0.62, '#1a130d');
+    bowl.addColorStop(1, '#0b0906');
+    ctx.beginPath(); ctx.arc(0, 0, R, 0, TAU); ctx.fillStyle = bowl; ctx.fill();
+
+    // Goldener Außenring
+    const rimW = Math.max(2, R * 0.035);
+    ctx.lineWidth = rimW;
+    ctx.strokeStyle = '#c39c55';
+    ctx.beginPath(); ctx.arc(0, 0, R - rimW / 2, 0, TAU); ctx.stroke();
+
+    // Vertiefte Laufbahn
+    ctx.lineWidth = Math.max(3, R * 0.085);
+    ctx.strokeStyle = 'rgba(0,0,0,.45)';
+    ctx.beginPath(); ctx.arc(0, 0, rTrack, 0, TAU); ctx.stroke();
+
+    // Taschen
+    ctx.lineWidth = Math.max(0.6, R * 0.006);
+    ctx.strokeStyle = 'rgba(212,175,106,.5)';
+    for (let i = 0; i < WHEEL_ORDER.length; i++) {
+      const color = colorOf(WHEEL_ORDER[i]);
+      const a0 = wheelAngle + i * SEG - Math.PI / 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, rOuter, a0, a0 + SEG);
+      ctx.arc(0, 0, rInner, a0 + SEG, a0, true);
+      ctx.closePath();
+      ctx.fillStyle = color === 'green' ? '#116b45' : color === 'red' ? '#b32127' : '#16181c';
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    // Zahlen (Oberkante zeigt nach außen)
+    ctx.fillStyle = '#f6f2e6';
+    ctx.font = `700 ${Math.max(6.5, R * 0.068)}px ${getComputedStyle(document.body).fontFamily}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (let i = 0; i < WHEEL_ORDER.length; i++) {
+      ctx.save();
+      ctx.rotate(wheelAngle + pocketAngle(i) + Math.PI / 2);
+      ctx.translate(0, -rText);
+      ctx.fillText(String(WHEEL_ORDER[i]), 0, 0);
+      ctx.restore();
+    }
+
+    // Innenkegel
+    const cone = ctx.createRadialGradient(-R * 0.15, -R * 0.2, R * 0.05, 0, 0, rInner);
+    cone.addColorStop(0, '#3a2c1c');
+    cone.addColorStop(0.55, '#241a10');
+    cone.addColorStop(1, '#120d08');
+    ctx.beginPath(); ctx.arc(0, 0, rInner, 0, TAU); ctx.fillStyle = cone; ctx.fill();
+    ctx.lineWidth = Math.max(1.2, R * 0.014);
+    ctx.strokeStyle = 'rgba(212,175,106,.7)';
+    ctx.stroke();
+
+    // Kreuz-Spindel (dreht mit dem Rad)
+    ctx.save();
+    ctx.rotate(wheelAngle);
+    ctx.strokeStyle = 'rgba(212,175,106,.85)';
+    ctx.lineWidth = Math.max(2, R * 0.026);
+    ctx.lineCap = 'round';
+    for (let k = 0; k < 4; k++) {
+      const a = (k * Math.PI) / 2;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a) * R * 0.06, Math.sin(a) * R * 0.06);
+      ctx.lineTo(Math.cos(a) * rInner * 0.86, Math.sin(a) * rInner * 0.86);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // Nabe
+    const hub = ctx.createRadialGradient(-R * 0.03, -R * 0.04, 1, 0, 0, R * 0.13);
+    hub.addColorStop(0, '#f2ddab');
+    hub.addColorStop(1, '#8d7442');
+    ctx.beginPath(); ctx.arc(0, 0, R * 0.13, 0, TAU); ctx.fillStyle = hub; ctx.fill();
+
+    // Kugel
+    if (ballVisible) {
+      const bx = Math.cos(ballAngle) * ballRadius;
+      const by = Math.sin(ballAngle) * ballRadius;
+      const br = Math.max(3.5, R * 0.043);
+      ctx.beginPath();
+      ctx.arc(bx, by + br * 0.4, br * 0.95, 0, TAU);
+      ctx.fillStyle = 'rgba(0,0,0,.4)';
+      ctx.fill();
+      const g = ctx.createRadialGradient(bx - br * 0.35, by - br * 0.4, br * 0.1, bx, by, br);
+      g.addColorStop(0, '#ffffff');
+      g.addColorStop(0.6, '#e9e6dc');
+      g.addColorStop(1, '#a7a49b');
+      ctx.beginPath(); ctx.arc(bx, by, br, 0, TAU); ctx.fillStyle = g; ctx.fill();
+    }
+
+    ctx.restore();
+  }
+
+  /* --------------------------- Animationsschleife --------------------------- */
+  function frame(now) {
+    if (!running) return;
+
+    if (spin) {
+      const t = Math.min(1, (now - spin.start) / spin.duration);
+
+      wheelAngle = spin.w0 + spin.wSpin * easeOutCubic(t);   // Rad läuft aus
+      ballAngle = spin.b0 + spin.bSpin * easeOutQuart(t);    // Kugel gegenläufig
+
+      if (t < spin.dropAt) {
+        // Kugel liegt noch auf der Laufbahn (minimales Schwingen)
+        ballRadius = spin.rimR + Math.sin(t * 70) * R * 0.004;
+      } else {
+        // Fall in den Taschenkranz mit abklingenden Hüpfern
+        const u = (t - spin.dropAt) / (1 - spin.dropAt);
+        const base = spin.rimR + (spin.pocketR - spin.rimR) * easeInOut(u);
+        const hop = Math.abs(Math.sin(u * Math.PI * 3.2)) * Math.pow(1 - u, 2.2) * R * 0.07;
+        ballRadius = base + hop;
+
+        // Klick, sobald die Kugel eine Tasche weiterspringt
+        if (onTick) {
+          const rel = (((ballAngle - wheelAngle) % TAU) + TAU) % TAU;
+          const idx = Math.floor(rel / SEG);
+          if (idx !== lastTickPocket) {
+            lastTickPocket = idx;
+            onTick(1 - t);
+          }
+        }
+      }
+
+      if (t >= 1) {
+        // Endzustand exakt setzen – hier landet die Kugel garantiert richtig
+        wheelAngle = spin.w0 + spin.wSpin;
+        settledIndex = spin.index;
+        ballAngle = wheelAngle + pocketAngle(settledIndex);
+        ballRadius = spin.pocketR;
+        idleStart = now;
+        idleWheel = wheelAngle;
+        const finish = spin.resolve;
+        spin = null;
+        finish();
+      }
+    } else if (settledIndex !== null) {
+      // Ruhelauf: Rad dreht langsam weiter, die Kugel liegt in ihrer Tasche
+      const dt = (now - idleStart) / 1000;
+      wheelAngle = idleWheel + dt * 0.14;
+      ballAngle = wheelAngle + pocketAngle(settledIndex);
+    } else {
+      // Leerlauf vor dem Wurf
+      wheelAngle += 0.0016;
+    }
+
+    draw();
+    rafId = requestAnimationFrame(frame);
+  }
+
+  function start() {
+    if (running) return;
+    running = true;
+    resize();
+    rafId = requestAnimationFrame(frame);
+  }
+
+  function stop() {
+    running = false;
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = null;
+  }
+
+  /**
+   * Wirft die Kugel auf eine BEREITS feststehende Zahl.
+   * @param {number} winning   Gewinnzahl 0–36
+   * @param {number} duration  Animationsdauer in ms
+   * @returns {Promise<void>}  erfüllt, sobald die Kugel liegt
+   */
+  function throwBall(winning, duration = 6200) {
+    const index = WHEEL_ORDER.indexOf(winning);
+    if (index < 0) throw new Error(`Zahl ${winning} liegt nicht auf dem Rad`);
+
+    resize();
+    settledIndex = null;
+    ballVisible = true;
+    lastTickPocket = -1;
+
+    const w0 = wheelAngle;
+    const wSpin = (4 + Math.random() * 2) * TAU;            // Umdrehungen des Rades
+    const target = w0 + wSpin + pocketAngle(index);         // Weltwinkel der Zieltasche am Ende
+
+    const b0 = Math.random() * TAU;                          // zufälliger Einwurfpunkt
+    const bTurns = 7 + Math.floor(Math.random() * 4);        // Umläufe der Kugel
+    const rawDelta = (((target - b0) % TAU) + TAU) % TAU;
+    const bSpin = rawDelta - TAU * (bTurns + 1);             // negativ => Gegenrichtung
+
+    return new Promise((resolve) => {
+      spin = {
+        start: performance.now(),
+        duration,
+        index,
+        w0, wSpin, b0, bSpin,
+        rimR: R * 0.815,
+        pocketR: R * 0.63,
+        dropAt: 0.55 + Math.random() * 0.08,
+        resolve
+      };
+      start();
+    });
+  }
+
+  /** Setzt das Rad für die nächste Runde zurück (Kugel wird abgenommen). */
+  function reset() {
+    spin = null;
+    settledIndex = null;
+    ballVisible = false;
+    ballRadius = R * 0.815;
+    draw();
+  }
+
+  /** Nur für Tests/Diagnose: aktueller Animationszustand. */
+  function debugState() {
+    return {
+      wheelAngle, ballAngle, ballRadius, settledIndex, R,
+      pocketWorldAngle: settledIndex === null ? null : wheelAngle + pocketAngle(settledIndex)
+    };
+  }
+
+  return { start, stop, draw, resize, throwBall, reset, debugState };
+}
+
+/* ===== js/sound.js ===== */
+/**
+ * Sehr sparsame Klangeffekte über die Web Audio API.
+ * Keine Audiodateien, keine externen Ressourcen.
+ */
+let ctx = null;
+let enabled = true;
+
+function audio() {
+  if (!ctx) {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    ctx = new AC();
+  }
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+  return ctx;
+}
+
+function blip({ freq = 440, dur = 0.06, type = 'triangle', gain = 0.05 }) {
+  if (!enabled) return;
+  const ac = audio();
+  if (!ac) return;
+  const osc = ac.createOscillator();
+  const amp = ac.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, ac.currentTime);
+  amp.gain.setValueAtTime(gain, ac.currentTime);
+  amp.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + dur);
+  osc.connect(amp).connect(ac.destination);
+  osc.start();
+  osc.stop(ac.currentTime + dur);
+}
+
+const sound = {
+  setEnabled(v) { enabled = Boolean(v); },
+  get enabled() { return enabled; },
+  chip() { blip({ freq: 660, dur: 0.05, type: 'square', gain: 0.035 }); },
+  remove() { blip({ freq: 300, dur: 0.05, type: 'square', gain: 0.03 }); },
+  /** Kugel-Klick; wird während des Laufs schneller/leiser */
+  tick(progressLeft) {
+    blip({ freq: 900 + progressLeft * 500, dur: 0.028, type: 'square', gain: 0.02 });
+  },
+  spin() { blip({ freq: 220, dur: 0.35, type: 'sawtooth', gain: 0.025 }); },
+  win() {
+    [523, 659, 784, 1047].forEach((f, i) =>
+      setTimeout(() => blip({ freq: f, dur: 0.18, type: 'triangle', gain: 0.05 }), i * 85));
+  },
+  lose() {
+    [330, 262].forEach((f, i) =>
+      setTimeout(() => blip({ freq: f, dur: 0.22, type: 'sine', gain: 0.04 }), i * 130));
+  }
+};
+
+/* ===== js/ui.js ===== */
+/**
+ * DOM-Hilfen: Bildschirmwechsel, Toasts, Einsatzübersicht,
+ * Rundenauswertung und Bestätigungsdialog.
+ * Enthält keine Spiellogik – die steckt in app.js.
+ */
+
+
+const $ = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
+
+const SCREENS = ['auth', 'menu', 'game', 'shop', 'settings', 'privacy'];
+let currentScreen = null;
+
+function showScreen(name) {
+  for (const s of SCREENS) {
+    const el = document.getElementById(`screen-${s}`);
+    if (el) el.hidden = s !== name;
+  }
+  currentScreen = name;
+  window.scrollTo({ top: 0 });
+}
+
+const getScreen = () => currentScreen;
+
+/* ------------------------------ Toasts ------------------------------ */
+function toast(message, kind = '') {
+  const host = $('#toast-host');
+  // Höchstens drei Meldungen gleichzeitig
+  while (host.children.length >= 3) host.firstElementChild.remove();
+  const el = document.createElement('div');
+  el.className = `toast ${kind}`.trim();
+  el.textContent = message;
+  host.appendChild(el);
+  setTimeout(() => {
+    el.classList.add('is-out');
+    setTimeout(() => el.remove(), 300);
+  }, 2400);
+}
+
+/* ------------------------- Guthaben-Anzeige ------------------------- */
+function paintBalance(value) {
+  for (const el of $$('[data-balance]')) {
+    const next = money(value);
+    if (el.textContent !== next) {
+      el.textContent = next;
+      el.classList.remove('pulse');
+      void el.offsetWidth;          // Reflow erzwingen, damit die Animation neu startet
+      el.classList.add('pulse');
+    }
+  }
+}
+
+function paintUsername(name) {
+  for (const el of $$('[data-username]')) el.textContent = name;
+}
+
+/* ----------------------- Farbpunkt je Wettart ----------------------- */
+function dotClass(info, id) {
+  if (id.startsWith('straight:')) return colorOf(info.number);
+  if (id === 'red') return 'red';
+  if (id === 'black') return 'black';
+  return 'gold';
+}
+
+/**
+ * Zeichnet die Einsatzübersicht rechts.
+ * @param {Array<{id:string, amount:number, info:object}>} entries
+ * @param {Map<string, {won:boolean, net:number}>|null} results
+ */
+function renderBetList(entries, results = null) {
+  const list = $('#bet-list');
+  list.innerHTML = '';
+
+  if (!entries.length) {
+    const p = document.createElement('p');
+    p.className = 'bet-empty';
+    p.textContent = 'Noch keine Einsätze platziert.';
+    list.appendChild(p);
+  }
+
+  let total = 0;
+  let net = 0;
+  for (const entry of entries) {
+    total += entry.amount;
+    const res = results?.get(entry.id);
+    if (res) net += res.net;
+
+    const row = document.createElement('div');
+    row.className = `bet-row${res ? (res.won ? ' is-win' : ' is-loss') : ''}`;
+    row.setAttribute('role', 'row');
+    row.innerHTML = `
+      <span class="bet-name"><i class="bet-dot ${dotClass(entry.info, entry.id)}"></i>${entry.info.label}</span>
+      <span class="bet-amount ta-right">${money(entry.amount)}</span>
+      <span class="bet-result ta-right ${res ? (res.won ? 'win' : 'loss') : 'pending'}">${
+        res ? signedMoney(res.net) : '—'
+      }</span>`;
+    list.appendChild(row);
+  }
+
+  $('#bet-total').textContent = money(total);
+  const totalEl = $('#bet-result-total');
+  if (results && entries.length) {
+    totalEl.textContent = signedMoney(net);
+    totalEl.className = `ta-right ${net >= 0 ? 'win' : 'loss'}`;
+  } else {
+    totalEl.textContent = '—';
+    totalEl.className = 'ta-right';
+  }
+}
+
+/* ------------------------- Rundenauswertung ------------------------- */
+function showSummary(round, newBalance, { onRepeat, onNext, canRepeat }) {
+  $('#summary-ball').textContent = String(round.winning);
+  $('#summary-ball').className = `summary-ball ${round.color}`;
+  $('#summary-title').textContent =
+    round.net > 0 ? 'Gewonnen!' : round.net < 0 ? 'Verloren' : 'Einsatz zurück';
+  $('#summary-sub').textContent =
+    `Gewinnzahl ${round.winning} · ${COLOR_LABEL[round.color]}`;
+
+  const list = $('#summary-list');
+  list.innerHTML = '';
+  // Gewinner zuerst, dann Verluste – innerhalb absteigend nach Betrag
+  const sorted = [...round.results].sort((a, b) => (b.won - a.won) || (b.amount - a.amount));
+  for (const r of sorted) {
+    const item = document.createElement('div');
+    item.className = `summary-item ${r.won ? 'win' : 'loss'}`;
+    item.innerHTML = `
+      <span>${r.label}</span>
+      <span class="amt">${money(r.amount)}</span>
+      <span class="net">${signedMoney(r.net)}</span>`;
+    list.appendChild(item);
+  }
+
+  $('#summary-staked').textContent = money(round.staked);
+  $('#summary-returned').textContent = money(round.returned);
+  $('#summary-net').textContent = signedMoney(round.net);
+  $('#summary-net').parentElement.className =
+    `summary-net ${round.net > 0 ? 'win' : round.net < 0 ? 'loss' : ''}`;
+  $('#summary-balance').textContent = money(newBalance);
+
+  const repeatBtn = $('#summary-repeat');
+  repeatBtn.disabled = !canRepeat;
+  repeatBtn.onclick = () => { hideSummary(); onRepeat(); };
+  $('#summary-next').onclick = () => { hideSummary(); onNext(); };
+
+  $('#summary-modal').hidden = false;
+  $('#summary-next').focus({ preventScroll: true });
+}
+
+function hideSummary() {
+  $('#summary-modal').hidden = true;
+}
+
+/* ------------------------ Bestätigungsdialog ------------------------ */
+function confirmDialog(title, text, confirmLabel = 'Ja, löschen') {
+  return new Promise((resolve) => {
+    const modal = $('#confirm-modal');
+    $('#confirm-title').textContent = title;
+    $('#confirm-text').textContent = text;
+    $('#confirm-yes').textContent = confirmLabel;
+    modal.hidden = false;
+
+    const close = (value) => {
+      modal.hidden = true;
+      $('#confirm-yes').onclick = null;
+      $('#confirm-no').onclick = null;
+      resolve(value);
+    };
+    $('#confirm-yes').onclick = () => close(true);
+    $('#confirm-no').onclick = () => close(false);
+    $('#confirm-no').focus({ preventScroll: true });
+  });
+}
+
+/* --------------------------- Ergebnis-Badge --------------------------- */
+function showResultBadge(winning) {
+  const badge = $('#result-badge');
+  $('#result-number').textContent = String(winning);
+  const color = colorOf(winning);
+  const colorEl = $('#result-color');
+  colorEl.textContent = COLOR_LABEL[color];
+  colorEl.className = `result-color ${color}`;
+  badge.hidden = false;
+}
+
+function hideResultBadge() {
+  $('#result-badge').hidden = true;
+}
+
+/* ------------------------------ Statistik ------------------------------ */
+function renderStats(stats) {
+  const el = $('#panel-stats');
+  const rows = [
+    ['Runden gespielt', stats.rounds],
+    ['Gesamteinsatz', money(stats.wagered)],
+    ['Höchster Gewinn', money(stats.biggestWin)],
+    ['Bestes Guthaben', money(stats.bestBalance)]
+  ];
+  el.innerHTML = rows.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
+}
+
+/* ===== js/app.js ===== */
+/**
+ * Grand Vert Roulette – Anwendungslogik.
+ *
+ * Ablauf einer Runde:
+ *   1. Spieler wählt einen Jeton und klickt Felder an   -> Einsatz wird SOFORT
+ *      vom Guthaben abgezogen (kann nie mehr sein als vorhanden).
+ *   2. "LET IT RIDE"  -> Gewinnzahl wird kryptografisch bestimmt, Tisch gesperrt.
+ *   3. Animation stellt genau diese Zahl dar.
+ *   4. Auswertung nach europäischen Regeln, Rückzahlung = Einsatz + Gewinn.
+ *   5. Guthaben und Statistik werden im Benutzerkonto gespeichert.
+ */
+
+
+
+
+
+
+
+
+
+const SPIN_DURATION = { fast: 4200, normal: 6400, cinematic: 8600 };
+
+/**
+ * Diagnose-Objekt (window.__grandVert). Wird von den automatisierten Tests
+ * gelesen und erleichtert die Fehlersuche. Enthält keine Geheimnisse:
+ * der Spielstand liegt ohnehin im Browser bzw. im eigenen Supabase-Konto.
+ */
+const debug = { landing: null, lastRound: null };
+const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+
+const state = {
+  profile: null,
+  ledger: createLedger(),
+  chipValue: 10,
+  customChip: null,
+  phase: 'betting',        // betting | spinning | result
+  lastSnapshot: [],
+  settings: loadSettings(),
+  authMode: 'login',
+  prevScreen: 'menu',
+  wheel: null
+};
+
+/* ==================================================================== */
+/* Guthaben & Speichern                                                  */
+/* ==================================================================== */
+
+const available = () => state.profile?.balance ?? 0;
+
+/** Speichert den Spielstand im Konto. Nur aufrufen, wenn keine Einsätze offen sind. */
+async function persist() {
+  if (!state.profile) return;
+  state.profile.updatedAt = new Date().toISOString();
+  try {
+    await store.saveProfile(state.profile);
+  } catch (err) {
+    console.error(err);
+    toast('Spielstand konnte nicht gespeichert werden.', 'warn');
+  }
+}
+
+/* ==================================================================== */
+/* Anzeige aktualisieren                                                 */
+/* ==================================================================== */
+
+function refresh(results = null) {
+  const entries = state.ledger.entries();
+  const staked = state.ledger.total();
+
+  paintBalance(available());
+  $('#staked-total').textContent = money(staked);
+  renderBetList(entries, results);
+  renderBoardChips($('#board'), state.ledger.map);
+  renderStats(state.profile.stats);
+  renderLastNumbers($('#last-numbers'), (state.profile.history || []).map((h) => h.winning));
+
+  // Jetons deaktivieren, für die das Guthaben nicht reicht
+  for (const chip of $$('#chips .chip')) {
+    chip.disabled = Number(chip.dataset.value) > available() || state.phase !== 'betting';
+    chip.classList.toggle('is-active', Number(chip.dataset.value) === state.chipValue);
+  }
+
+  const betting = state.phase === 'betting';
+  $('#btn-undo').disabled = !betting || staked === 0;
+  $('#btn-clear').disabled = !betting || staked === 0;
+  $('#btn-repeat').disabled = !betting || state.lastSnapshot.length === 0;
+
+  const ride = $('#btn-ride');
+  ride.disabled = !betting || staked === 0;
+  ride.classList.toggle('is-ready', betting && staked > 0);
+  $('#ride-sub').textContent = !betting
+    ? 'Runde läuft …'
+    : staked > 0 ? `${money(staked)} im Spiel` : 'Einsätze platzieren';
+
+  renderBoardHint();
+}
+
+/** Hinweiszeile unter dem Brett – zeigt bei 0 € das Notfall-Guthaben an. */
+function renderBoardHint() {
+  const hint = $('#board-hint');
+  const broke = available() <= 0 && state.ledger.total() === 0 && state.phase === 'betting';
+  if (!broke) {
+    hint.classList.remove('has-action');
+    hint.innerHTML = 'Jeton wählen, dann auf ein Feld klicken. Rechtsklick entfernt einen Jeton.';
+    return;
+  }
+  hint.classList.add('has-action');
+  hint.innerHTML = '';
+  const btn = document.createElement('button');
+  btn.className = 'btn btn-gold btn-sm';
+  btn.textContent = `Notfall-Guthaben: +${money(APP_CONFIG.bailout)} virtuelles Spielgeld`;
+  btn.onclick = async () => {
+    state.profile.balance += APP_CONFIG.bailout;
+    state.profile.stats.bailouts = (state.profile.stats.bailouts || 0) + 1;
+    await persist();
+    toast(`${money(APP_CONFIG.bailout)} gutgeschrieben.`, 'good');
+    refresh();
+  };
+  hint.appendChild(btn);
+}
+
+/* ==================================================================== */
+/* Einsätze                                                              */
+/* ==================================================================== */
+
+/**
+ * Wechselt auf den größten noch bezahlbaren Standard-Jeton, wenn das Guthaben
+ * unter den gewählten Wert gefallen ist. Wird bewusst NICHT beim manuellen
+ * Auswählen aufgerufen – eine bewusste Auswahl des Spielers bleibt stehen.
+ */
+function ensureAffordableChip() {
+  if (state.chipValue <= available() || available() <= 0) return;
+  const affordable = APP_CONFIG.chips.filter((c) => c <= available());
+  if (affordable.length) state.chipValue = affordable[affordable.length - 1];
+}
+
+function placeBet(betId) {
+  if (state.phase !== 'betting') {
+    toast('Nichts geht mehr – die Runde läuft.', 'warn');
+    return;
+  }
+  const value = state.chipValue;
+  if (value > available()) {
+    toast('Dafür reicht dein Guthaben nicht.', 'warn');
+    return;
+  }
+  const placed = state.ledger.add(betId, value, available());
+  if (!placed) {
+    toast('Einsatz nicht möglich.', 'warn');
+    return;
+  }
+  state.profile.balance -= placed;    // Einsatz sofort abziehen
+  sound.chip();
+  ensureAffordableChip();
+  refresh();
+}
+
+function removeBet(betId) {
+  if (state.phase !== 'betting') return;
+  const removed = state.ledger.removeFrom(betId);
+  if (!removed) return;
+  state.profile.balance += removed.amount;
+  sound.remove();
+  refresh();
+}
+
+function undoBet() {
+  const removed = state.ledger.undo();
+  if (!removed) return;
+  state.profile.balance += removed.amount;
+  sound.remove();
+  refresh();
+}
+
+function clearBets() {
+  const refund = state.ledger.clear();
+  if (!refund) return;
+  state.profile.balance += refund;
+  sound.remove();
+  refresh();
+}
+
+function repeatBets() {
+  if (!state.lastSnapshot.length) return;
+  const spent = state.ledger.restore(state.lastSnapshot, available());
+  state.profile.balance -= spent;
+  if (spent === 0) toast('Guthaben reicht für die Wiederholung nicht.', 'warn');
+  else sound.chip();
+  refresh();
+}
+
+/* ==================================================================== */
+/* Runde                                                                 */
+/* ==================================================================== */
+
+async function letItRide() {
+  if (state.phase !== 'betting' || state.ledger.total() === 0) return;
+
+  // 1) Ergebnis steht vor der Animation fest
+  const winning = spinNumber();
+  const entries = state.ledger.entries();
+  state.lastSnapshot = state.ledger.snapshot();
+  state.phase = 'spinning';
+
+  $('#board').classList.add('is-locked');
+  clearHighlight($('#board'));
+  refresh();
+
+  // 2) Brett zur Seite, Rad in die Mitte
+  const stage = $('#stage');
+  $('#wheel-wrap').setAttribute('aria-hidden', 'false');
+  state.wheel.reset();
+  state.wheel.start();
+  stage.classList.add('is-spinning');
+  $('#wheel-status').textContent = 'Rien ne va plus — nichts geht mehr';
+  sound.spin();
+  await delay(680);
+
+  // 3) Kugel läuft auf die vorher bestimmte Zahl
+  const duration = SPIN_DURATION[state.settings.speed] || SPIN_DURATION.normal;
+  await state.wheel.throwBall(winning, duration);
+  debug.landing = { winning, ...state.wheel.debugState() };
+
+  // 4) Auswertung
+  const round = resolveRound(entries, winning);
+  debug.lastRound = round;
+  const resultMap = new Map(round.results.map((r) => [r.id, r]));
+
+  showResultBadge(winning);
+  $('#wheel-status').textContent = `${winning} · ${COLOR_LABEL[colorOf(winning)]}`;
+  round.net > 0 ? sound.win() : sound.lose();
+
+  state.phase = 'result';
+  renderBetList(entries, resultMap);
+  await delay(1700);
+
+  // 5) Guthaben gutschreiben (Rückzahlung = Einsatz + Gewinn bei Treffern)
+  state.profile.balance += round.returned;
+  updateStats(round);
+  paintBalance(available());
+
+  // 6) Zurück zum Brett
+  hideResultBadge();
+  stage.classList.remove('is-spinning');
+  $('#wheel-wrap').setAttribute('aria-hidden', 'true');
+  await delay(420);
+  state.wheel.stop();
+  state.wheel.reset();
+  highlightWinner($('#board'), winning);
+
+  await persist();
+
+  showSummary(round, available(), {
+    canRepeat: state.lastSnapshot.reduce((s, b) => s + b.amount, 0) <= available(),
+    onRepeat: () => startNextRound(true),
+    onNext: () => startNextRound(false)
+  });
+}
+
+function updateStats(round) {
+  const s = state.profile.stats;
+  s.rounds += 1;
+  s.wagered += round.staked;
+  if (round.net > 0) s.won += round.net;
+  else s.lost += Math.abs(round.net);
+  s.biggestWin = Math.max(s.biggestWin || 0, round.net);
+  s.bestBalance = Math.max(s.bestBalance || 0, state.profile.balance);
+
+  state.profile.history.unshift({
+    at: new Date().toISOString(),
+    winning: round.winning,
+    color: round.color,
+    staked: round.staked,
+    net: round.net,
+    balance: state.profile.balance,
+    bets: round.results.map((r) => ({ id: r.id, amount: r.amount, net: r.net }))
+  });
+  state.profile.history = state.profile.history.slice(0, APP_CONFIG.maxHistory);
+}
+
+function startNextRound(repeat) {
+  state.ledger.clear();               // bereits ausgewertet – kein Rückerstatten
+  clearHighlight($('#board'));
+  $('#board').classList.remove('is-locked');
+  $('#wheel-status').textContent = '';
+  state.phase = 'betting';
+  ensureAffordableChip();
+  if (repeat) repeatBets();
+  else refresh();
+}
+
+/* ==================================================================== */
+/* Jetons                                                                */
+/* ==================================================================== */
+
+function buildChips() {
+  const host = $('#chips');
+  host.innerHTML = '';
+  for (const value of APP_CONFIG.chips) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `chip chip-c${value}`;
+    btn.dataset.value = String(value);
+    btn.textContent = `${value} €`;
+    btn.setAttribute('role', 'radio');
+    btn.setAttribute('aria-label', `Jeton ${value} Euro`);
+    btn.onclick = () => selectChip(value);
+    host.appendChild(btn);
+  }
+}
+
+function selectChip(value) {
+  state.chipValue = value;
+  sound.chip();
+  refresh();
+}
+
+function applyCustomChip() {
+  const input = $('#custom-amount');
+  const value = Math.floor(Number(input.value));
+  if (!Number.isFinite(value) || value <= 0) {
+    toast('Bitte einen Betrag größer als 0 eingeben.', 'warn');
+    return;
+  }
+  if (value > APP_CONFIG.maxBetPerField) {
+    toast(`Maximal ${money(APP_CONFIG.maxBetPerField)} pro Feld.`, 'warn');
+    return;
+  }
+  if (value > available()) {
+    toast('Hinweis: Dieser Betrag liegt über deinem Guthaben.', 'warn');
+  }
+  state.customChip = value;
+
+  // Eigenen Jeton in die Leiste aufnehmen (nur einer gleichzeitig)
+  $('#chips .chip-custom-val')?.remove();
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'chip chip-custom-val';
+  btn.dataset.value = String(value);
+  btn.textContent = `${value} €`;
+  btn.setAttribute('aria-label', `Eigener Jeton ${value} Euro`);
+  btn.onclick = () => selectChip(value);
+  $('#chips').appendChild(btn);
+
+  selectChip(value);
+  input.value = '';
+}
+
+/* ==================================================================== */
+/* Konto / Navigation                                                    */
+/* ==================================================================== */
+
+function applySession(session) {
+  state.profile = session.profile;
+  paintUsername(session.user.name);
+  $('#settings-account-info').textContent =
+    `${session.user.name} · ${store.mode === 'supabase' ? 'Server-Konto (Supabase)' : 'Lokales Konto in diesem Browser'}`;
+  paintBalance(available());
+  renderStats(state.profile.stats);
+}
+
+async function handleAuthSubmit(ev) {
+  ev.preventDefault();
+  const errorEl = $('#auth-error');
+  errorEl.hidden = true;
+
+  const identifier = $('#auth-identifier').value.trim();
+  const password = $('#auth-password').value;
+  const submit = $('#auth-submit');
+
+  const idError = store.validateIdentifier(identifier);
+  if (idError) return showAuthError(idError);
+  if (password.length < 6) return showAuthError('Das Passwort braucht mindestens 6 Zeichen.');
+  if (state.authMode === 'register' && password !== $('#auth-password2').value) {
+    return showAuthError('Die beiden Passwörter stimmen nicht überein.');
+  }
+
+  submit.disabled = true;
+  submit.textContent = 'Einen Moment …';
+  try {
+    const session = state.authMode === 'register'
+      ? await store.register(identifier, password)
+      : await store.login(identifier, password);
+    applySession(session);
+    $('#auth-password').value = '';
+    $('#auth-password2').value = '';
+    showScreen('menu');
+    toast(`Willkommen, ${session.user.name}!`, 'good');
+  } catch (err) {
+    showAuthError(err.message || 'Anmeldung fehlgeschlagen.');
+  } finally {
+    submit.disabled = false;
+    submit.textContent = state.authMode === 'register' ? 'Konto erstellen' : 'Anmelden';
+  }
+}
+
+function showAuthError(message) {
+  const el = $('#auth-error');
+  el.textContent = message;
+  el.hidden = false;
+}
+
+function setAuthMode(mode) {
+  state.authMode = mode;
+  for (const tab of $$('[data-auth-tab]')) {
+    const active = tab.dataset.authTab === mode;
+    tab.classList.toggle('is-active', active);
+    tab.setAttribute('aria-selected', String(active));
+  }
+  $('#auth-password2-field').hidden = mode !== 'register';
+  $('#auth-submit').textContent = mode === 'register' ? 'Konto erstellen' : 'Anmelden';
+  $('#auth-password').autocomplete = mode === 'register' ? 'new-password' : 'current-password';
+  $('#auth-error').hidden = true;
+}
+
+async function logout() {
+  if (state.ledger.total() > 0) clearBets();
+  await persist();
+  await store.logout();
+  state.profile = null;
+  state.lastSnapshot = [];
+  showScreen('auth');
+  toast('Abgemeldet. Dein Spielstand bleibt gespeichert.');
+}
+
+function navigate(target) {
+  if (target === 'game') {
+    if (!state.profile) return showScreen('auth');
+    showScreen('game');
+    state.wheel.resize();
+    refresh();
+    return;
+  }
+  if (target === 'privacy') state.prevScreen = getScreen() || 'menu';
+  showScreen(target);
+}
+
+/**
+ * Zeigt alle gespeicherten Daten an – zum Ansehen, Kopieren und Herunterladen.
+ * Der Text im Fenster ist der eigentliche Export: er funktioniert auch dort,
+ * wo der Browser den Datei-Download blockiert (z. B. in eingebetteten Seiten).
+ */
+function exportData() {
+  const payload = {
+    exportiertAm: new Date().toISOString(),
+    konto: store.userName,
+    modus: store.mode,
+    guthaben: state.profile.balance,
+    statistik: state.profile.stats,
+    runden: state.profile.history
+  };
+  const json = JSON.stringify(payload, null, 2);
+  const box = $('#export-json');
+  box.value = json;
+  $('#export-modal').hidden = false;
+  box.focus({ preventScroll: true });
+  box.select();
+
+  $('#export-copy').onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(json);
+      toast('In die Zwischenablage kopiert.', 'good');
+    } catch {
+      box.select();
+      toast('Bitte mit Strg+C bzw. Cmd+C kopieren.', 'warn');
+    }
+  };
+
+  $('#export-download').onclick = () => {
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'grand-vert-spielstand.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  $('#export-close').onclick = () => { $('#export-modal').hidden = true; };
+}
+
+async function deleteAccount() {
+  const ok = await confirmDialog(
+    'Konto wirklich löschen?',
+    'Konto, Guthaben, Statistik und Rundenverlauf werden unwiderruflich gelöscht. Das lässt sich nicht rückgängig machen.',
+    'Endgültig löschen'
+  );
+  if (!ok) return;
+  try {
+    await store.deleteAccount();
+    state.profile = null;
+    state.ledger.clear();
+    showScreen('auth');
+    toast('Konto und alle Daten wurden gelöscht.', 'good');
+  } catch (err) {
+    toast(err.message || 'Löschen fehlgeschlagen.', 'warn');
+  }
+}
+
+/* ==================================================================== */
+/* Einstellungen                                                         */
+/* ==================================================================== */
+
+function applySettings() {
+  sound.setEnabled(state.settings.sound);
+  $('#set-sound').checked = state.settings.sound;
+  $('#set-speed').value = state.settings.speed;
+}
+
+/* ==================================================================== */
+/* Start                                                                 */
+/* ==================================================================== */
+
+async function boot() {
+  const bootText = $('#boot-text');
+
+  buildChips();
+  buildBoard($('#board'), placeBet, removeBet);
+  state.wheel = createWheel($('#wheel-canvas'), {
+    onTick: (left) => sound.tick(left)
+  });
+  applySettings();
+
+  // Navigation
+  for (const el of $$('[data-nav]')) el.addEventListener('click', () => navigate(el.dataset.nav));
+  $('#privacy-back').addEventListener('click', () => showScreen(state.prevScreen || 'menu'));
+  for (const tab of $$('[data-auth-tab]')) tab.addEventListener('click', () => setAuthMode(tab.dataset.authTab));
+  $('#auth-form').addEventListener('submit', handleAuthSubmit);
+  $('#btn-logout').addEventListener('click', logout);
+  $('#btn-logout-2').addEventListener('click', logout);
+
+  // Spielsteuerung
+  $('#btn-ride').addEventListener('click', letItRide);
+  $('#btn-undo').addEventListener('click', undoBet);
+  $('#btn-clear').addEventListener('click', clearBets);
+  $('#btn-repeat').addEventListener('click', repeatBets);
+  $('#btn-custom').addEventListener('click', applyCustomChip);
+  $('#custom-amount').addEventListener('keydown', (e) => { if (e.key === 'Enter') applyCustomChip(); });
+
+  // Einstellungen
+  $('#set-sound').addEventListener('change', (e) => {
+    state.settings.sound = e.target.checked;
+    saveSettings(state.settings);
+    sound.setEnabled(state.settings.sound);
+    if (state.settings.sound) sound.chip();
+  });
+  $('#set-speed').addEventListener('change', (e) => {
+    state.settings.speed = e.target.value;
+    saveSettings(state.settings);
+  });
+  $('#btn-export').addEventListener('click', exportData);
+  $('#btn-delete').addEventListener('click', deleteAccount);
+
+  // Backend vorbereiten
+  bootText.textContent = 'Konto wird geprüft …';
+  try {
+    await store.init();
+  } catch (err) {
+    bootText.textContent = err.message;
+    return;
+  }
+
+  // Anmeldemaske an das aktive Backend anpassen
+  $('#auth-id-label').textContent = store.identifierLabel;
+  $('#auth-id-hint').textContent = store.identifierHint;
+  $('#auth-identifier').type = store.identifierType;
+  $('#auth-identifier').autocomplete = store.identifierType === 'email' ? 'email' : 'username';
+  $('#auth-mode-note').textContent = store.mode === 'supabase'
+    ? 'Konten liegen sicher bei Supabase.'
+    : 'Konten werden in diesem Browser gespeichert.';
+  $('#privacy-storage-note').textContent = store.mode === 'supabase'
+    ? 'Konto und Spielstand liegen in deinem Supabase-Projekt. Die Zeilen sind per Row-Level-Security so geschützt, dass nur du selbst deinen Spielstand lesen und ändern kannst.'
+    : 'Konto und Spielstand liegen ausschließlich lokal im Speicher deines Browsers (localStorage). Es werden keine Daten an einen Server übertragen.';
+  setAuthMode('login');
+
+  // Bestehende Sitzung wiederherstellen -> Guthaben bleibt erhalten
+  try {
+    const session = await store.restoreSession();
+    if (session) {
+      applySession(session);
+      showScreen('menu');
+    } else {
+      showScreen('auth');
+    }
+  } catch (err) {
+    console.error(err);
+    showScreen('auth');
+  }
+
+  if (store.fallbackReason) toast(store.fallbackReason, 'warn');
+
+  $('#boot').classList.add('is-gone');
+  setTimeout(() => { $('#boot').hidden = true; }, 400);
+}
+
+// Escape schließt die Rundenauswertung und startet die nächste Runde
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  if (!$('#export-modal').hidden) { $('#export-modal').hidden = true; return; }
+  if (!$('#summary-modal').hidden) {
+    hideSummary();
+    startNextRound(false);
+  }
+});
+
+window.__grandVert = {
+  get landing() { return debug.landing; },
+  get lastRound() { return debug.lastRound; },
+  get balance() { return available(); },
+  get staked() { return state.ledger.total(); },
+  get phase() { return state.phase; },
+  get bets() { return [...state.ledger.map.entries()]; },
+  get profile() { return state.profile; },
+  wheel: () => state.wheel?.debugState()
+};
+
+boot();
+
+})();
+</script>
+</body>
+</html>
