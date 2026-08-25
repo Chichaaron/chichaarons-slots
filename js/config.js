@@ -7,7 +7,7 @@
  * Siehe README.md und supabase/schema.sql.
  */
 export const SUPABASE_CONFIG = {
-  url: 'https://dipvmfyzglavxepfkady.supabase.co/rest/v1/',
+  url: 'https://dipvmfyzglavxepfkady.supabase.co',
   anonKey: 'sb_publishable_6JeVQI6ZSqZHC3vud5-I_Q_3lHBNrbG'
 };
 
