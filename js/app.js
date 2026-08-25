@@ -1,5 +1,5 @@
 /**
- * Grand Vert Roulette – Anwendungslogik.
+ * Chichaarons Slots – Anwendungslogik.
  *
  * Ablauf einer Runde:
  *   1. Spieler wählt einen Jeton und klickt Felder an   -> Einsatz wird SOFORT
@@ -554,7 +554,7 @@ function exportData() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'grand-vert-spielstand.json';
+    a.download = 'chichaarons-slots-spielstand.json';
     document.body.appendChild(a);
     a.click();
     a.remove();
