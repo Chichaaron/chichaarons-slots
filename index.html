@@ -86,8 +86,8 @@
         <span class="menu-btn-sub">Europäisches Roulette · Einzelzahl bis Außenwette</span>
       </button>
       <button class="menu-btn" data-nav="shop">
-        <span class="menu-btn-title">Shop</span>
-        <span class="menu-btn-sub">Jeton-Designs &amp; Tischfarben · in Arbeit</span>
+        <span class="menu-btn-title">Shop<span class="menu-badge" id="menu-shop-badge" hidden>Bonus bereit</span></span>
+        <span class="menu-btn-sub">Gratis-Bonus abholen · Designs in Arbeit</span>
       </button>
       <button class="menu-btn" data-nav="settings">
         <span class="menu-btn-title">Einstellungen</span>
@@ -197,6 +197,23 @@
       <button class="icon-btn" data-nav="menu">‹ Menü</button>
       <h1>Shop</h1>
     </header>
+    <!-- Gratis-Bonus: alle X Minuten abholbar -->
+    <article class="bonus-card">
+      <div class="bonus-head">
+        <span class="bonus-coin" aria-hidden="true">€</span>
+        <div class="bonus-text">
+          <h2 class="bonus-title">Gratis-Bonus</h2>
+          <p class="bonus-sub" id="bonus-sub">—</p>
+        </div>
+        <strong class="bonus-amount" id="bonus-amount">—</strong>
+      </div>
+      <div class="bonus-bar" role="progressbar" aria-labelledby="bonus-title">
+        <span id="bonus-bar-fill"></span>
+      </div>
+      <button class="btn btn-gold btn-block" id="btn-bonus" type="button">Jetzt abholen</button>
+    </article>
+
+    <h2 class="shop-heading">Designs</h2>
     <p class="page-lead">
       Hier entstehen kosmetische Extras: Jeton-Designs, Tischfarben und Rad-Varianten.
       Alles ausschließlich für virtuelles Spielgeld – es gibt keine Echtgeld-Käufe.
