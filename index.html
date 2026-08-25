@@ -24,7 +24,7 @@
       <span class="brand-mark" aria-hidden="true"></span>
       <div>
         <h1 class="brand-name">CHICHAARONS SLOTS</h1>
-        <p class="brand-sub">Roulette · nur virtuelles Spielgeld</p>
+        <p class="brand-sub">Viel Erfolg</p>
       </div>
     </div>
 
@@ -70,7 +70,7 @@
       <span class="brand-mark" aria-hidden="true"></span>
       <div>
         <h1 class="brand-name">CHICHAARONS SLOTS</h1>
-        <p class="brand-sub">Roulette · nur virtuelles Spielgeld</p>
+        <p class="brand-sub">Viel Erfolg</p>
       </div>
     </div>
 
@@ -81,13 +81,13 @@
     </div>
 
     <nav class="menu-nav">
-      <button class="menu-btn menu-btn-primary" data-nav="game">
-        <span class="menu-btn-title">Spielen</span>
-        <span class="menu-btn-sub">Europäisches Roulette · Einzelzahl bis Außenwette</span>
+      <button class="menu-btn menu-btn-primary" data-nav="games">
+        <span class="menu-btn-title">SPIELEN</span>
+        <span class="menu-btn-sub">Verschiedene Minigames</span>
       </button>
       <button class="menu-btn" data-nav="shop">
         <span class="menu-btn-title">Shop<span class="menu-badge" id="menu-shop-badge" hidden>Bonus bereit</span></span>
-        <span class="menu-btn-sub">Gratis-Bonus abholen · Designs in Arbeit</span>
+        <span class="menu-btn-sub">Täglicher Bonus &amp; Designs</span>
       </button>
       <button class="menu-btn" data-nav="settings">
         <span class="menu-btn-title">Einstellungen</span>
@@ -102,10 +102,30 @@
   </div>
 </section>
 
+<!-- ===================== Spielauswahl (Game Hub) ===================== -->
+<section id="screen-games" class="screen" hidden>
+  <div class="hub">
+    <header class="hub-head">
+      <button class="icon-btn" data-nav="menu">‹ Menü</button>
+      <div class="hub-heading">
+        <h1 class="hub-title">MINIGAMES</h1>
+        <p class="hub-sub">Wähle dein Spiel — dein Guthaben gilt überall.</p>
+      </div>
+      <div class="stat stat-balance">
+        <span class="stat-label">Guthaben</span>
+        <strong class="stat-value" data-balance>—</strong>
+      </div>
+    </header>
+
+    <!-- Karten werden aus js/catalog.js erzeugt -->
+    <div class="game-grid" id="game-grid"></div>
+  </div>
+</section>
+
 <!-- ===================== Spiel ===================== -->
 <section id="screen-game" class="screen screen-game" hidden>
   <header class="topbar">
-    <button class="icon-btn" data-nav="menu" title="Zurück zum Menü" aria-label="Zurück zum Menü">‹ Menü</button>
+    <button class="icon-btn" data-nav="games" title="Zurück zur Spielauswahl" aria-label="Zurück zur Spielauswahl">‹ Spiele</button>
     <div class="topbar-brand">
       <span class="brand-mark brand-mark-sm" aria-hidden="true"></span>
       <span>CHICHAARONS SLOTS</span>
@@ -196,6 +216,10 @@
     <header class="page-head">
       <button class="icon-btn" data-nav="menu">‹ Menü</button>
       <h1>Shop</h1>
+      <div class="stat stat-balance page-head-balance">
+        <span class="stat-label">Guthaben</span>
+        <strong class="stat-value" data-balance>—</strong>
+      </div>
     </header>
     <!-- Gratis-Bonus: alle X Minuten abholbar -->
     <article class="bonus-card">
@@ -215,15 +239,11 @@
 
     <h2 class="shop-heading">Designs</h2>
     <p class="page-lead">
-      Hier entstehen kosmetische Extras: Jeton-Designs, Tischfarben und Rad-Varianten.
-      Alles ausschließlich für virtuelles Spielgeld – es gibt keine Echtgeld-Käufe.
+      Kaufe ein Design mit deinem virtuellen Guthaben — es verändert das komplette
+      Erscheinungsbild, vom Menü über die Spielauswahl bis zum Roulettetisch.
+      Es gibt keine Echtgeld-Käufe.
     </p>
-    <div class="shop-grid">
-      <article class="shop-item"><span class="shop-thumb thumb-classic"></span><h3>Classic Green</h3><p>Aktiv</p></article>
-      <article class="shop-item is-locked"><span class="shop-thumb thumb-noir"></span><h3>Noir</h3><p>Bald verfügbar</p></article>
-      <article class="shop-item is-locked"><span class="shop-thumb thumb-royal"></span><h3>Royal Bordeaux</h3><p>Bald verfügbar</p></article>
-      <article class="shop-item is-locked"><span class="shop-thumb thumb-ivory"></span><h3>Ivory &amp; Gold</h3><p>Bald verfügbar</p></article>
-    </div>
+    <div class="theme-grid" id="theme-grid"><!-- aus js/catalog.js --></div>
   </div>
 </section>
 
