@@ -558,6 +558,48 @@ button, input, select { font: inherit; color: inherit; }
 .page-text p, .page-text li { color: #cfd8d2; font-size: 14px; line-height: 1.65; }
 .page-text ul { margin: 0 0 10px; padding-left: 20px; }
 
+/* Gratis-Bonus im Shop */
+.bonus-card {
+  padding: 18px; border-radius: var(--radius); margin-bottom: 26px;
+  background: linear-gradient(160deg, rgba(212, 175, 106, .16), rgba(212, 175, 106, .04));
+  border: 1px solid rgba(212, 175, 106, .4);
+}
+.bonus-head { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+.bonus-coin {
+  width: 46px; height: 46px; flex: none; border-radius: 50%; display: grid; place-items: center;
+  font-size: 21px; font-weight: 800; color: #2a1e08;
+  background: radial-gradient(circle at 34% 28%, var(--gold-bright), var(--gold) 60%, var(--gold-dim));
+  border: 2px dashed rgba(255, 255, 255, .6); box-shadow: 0 4px 12px rgba(0, 0, 0, .45);
+}
+.bonus-text { flex: 1; min-width: 0; }
+.bonus-title { font-size: 17px; }
+.bonus-sub { font-size: 12.5px; color: var(--muted); margin-top: 3px; }
+.bonus-amount { font-size: 22px; color: var(--gold-bright); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.bonus-bar {
+  height: 6px; border-radius: 99px; overflow: hidden; margin-bottom: 14px;
+  background: rgba(0, 0, 0, .38);
+}
+.bonus-bar span {
+  display: block; height: 100%; width: 0;
+  background: linear-gradient(90deg, var(--gold-dim), var(--gold-bright));
+  transition: width .9s linear;
+}
+.bonus-card.is-ready { animation: bonusReady 2.6s ease-in-out infinite; }
+.bonus-card.is-ready .bonus-bar span { width: 100% !important; }
+@keyframes bonusReady {
+  0%, 100% { box-shadow: 0 0 0 rgba(242, 221, 171, 0); }
+  50% { box-shadow: 0 0 26px rgba(242, 221, 171, .3); }
+}
+.shop-heading { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); margin-bottom: 8px; }
+
+/* Hinweis am Shop-Knopf im Hauptmenü */
+.menu-badge {
+  display: inline-block; margin-left: 9px; padding: 2px 9px; border-radius: 99px;
+  font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: #2a1e08; background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+  vertical-align: 2px;
+}
+
 .shop-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
 .shop-item { padding: 14px; border-radius: var(--radius); background: rgba(255, 255, 255, .04); border: 1px solid rgba(255, 255, 255, .1); text-align: center; }
 .shop-item h3 { font-size: 14px; margin-top: 10px; }
