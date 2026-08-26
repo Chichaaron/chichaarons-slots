@@ -210,6 +210,86 @@
   </footer>
 </section>
 
+<!-- ===================== Mines ===================== -->
+<section id="screen-mines" class="screen" hidden>
+  <header class="topbar">
+    <button class="icon-btn" data-nav="games" title="Zurück zur Spielauswahl">‹ Spiele</button>
+    <div class="topbar-brand">
+      <span class="brand-mark brand-mark-sm" aria-hidden="true"></span>
+      <span>MINES</span>
+    </div>
+    <div class="topbar-right">
+      <div class="stat stat-balance">
+        <span class="stat-label">Guthaben</span>
+        <strong class="stat-value" data-balance>—</strong>
+      </div>
+    </div>
+  </header>
+
+  <main class="mines-layout">
+    <!-- Einstellungen: Feld, Minen, Einsatz -->
+    <aside class="mines-panel" id="mines-panel">
+      <section class="mines-step">
+        <h2 class="mines-step-title"><span class="mines-step-no">1</span> Spielfeld</h2>
+        <div class="board-options" id="mines-boards"><!-- aus js/mines.js --></div>
+      </section>
+
+      <section class="mines-step">
+        <h2 class="mines-step-title"><span class="mines-step-no">2</span> Minen</h2>
+        <div class="mines-slider-row">
+          <output class="mines-count" id="mines-count">—</output>
+          <span class="mines-max" id="mines-max">Feld wählen</span>
+        </div>
+        <input class="mines-slider" id="mines-slider" type="range" min="1" max="1" value="1"
+               aria-label="Anzahl der Minen" />
+      </section>
+
+      <section class="mines-step">
+        <h2 class="mines-step-title"><span class="mines-step-no">3</span> Einsatz</h2>
+        <div class="chips mines-chips" id="mines-chips"><!-- aus js/mines.js --></div>
+        <div class="chip-custom mines-custom-row">
+          <label for="mines-custom" class="sr-only">Eigener Einsatz</label>
+          <input id="mines-custom" type="number" min="1" step="1" placeholder="Eigener Betrag" inputmode="numeric" />
+          <button class="btn btn-ghost btn-sm" id="mines-custom-btn" type="button">Setzen</button>
+        </div>
+        <p class="mines-bet-line">Gewählter Einsatz: <b id="mines-bet">—</b></p>
+      </section>
+
+      <button class="btn btn-gold btn-block btn-lg" id="mines-start" type="button" disabled>SPIELEN</button>
+      <p class="mines-hint" id="mines-start-hint">—</p>
+    </aside>
+
+    <!-- Spielfeld und laufende Runde -->
+    <section class="mines-stage">
+      <div class="mines-stats">
+        <div class="mines-stat">
+          <span class="stat-label">Multiplikator</span>
+          <strong class="stat-value mines-mult" id="mines-multiplier">1,00×</strong>
+        </div>
+        <div class="mines-stat">
+          <span class="stat-label">Mögliche Auszahlung</span>
+          <strong class="stat-value" id="mines-payout">—</strong>
+        </div>
+        <div class="mines-stat">
+          <span class="stat-label">Sichere Felder</span>
+          <strong class="stat-value" id="mines-safe">—</strong>
+        </div>
+      </div>
+
+      <div class="mines-grid is-empty" id="mines-grid"><!-- aus js/mines.js --></div>
+
+      <div class="mines-result" id="mines-result" hidden></div>
+
+      <div class="mines-actions">
+        <button class="btn btn-gold btn-lg mines-cash" id="mines-cash" type="button" disabled>
+          <span>AUSZAHLEN</span><small>—</small>
+        </button>
+        <button class="btn btn-ghost" id="mines-new" type="button" hidden>Neue Runde</button>
+      </div>
+    </section>
+  </main>
+</section>
+
 <!-- ===================== Shop ===================== -->
 <section id="screen-shop" class="screen" hidden>
   <div class="page-card">
