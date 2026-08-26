@@ -115,5 +115,24 @@ export const sound = {
   blackjack() {
     [784, 988, 1319].forEach((f, i) =>
       setTimeout(() => blip({ freq: f, dur: 0.2, type: 'triangle', gain: 0.05 }), i * 90));
+  },
+
+  /* --------------------------- Crash --------------------------- */
+  /** Start der Runde: kurzer Aufwärts-Sweep. */
+  launch() {
+    blip({ freq: 180, dur: 0.32, type: 'triangle', gain: 0.035, sweep: 640 });
+  },
+  /**
+   * Leises Ticken, während die Kurve steigt.
+   * @param {number} progress 0…1 – je höher, desto heller
+   */
+  rise(progress) {
+    const p = Math.min(1, Math.max(0, progress));
+    blip({ freq: 420 + p * 900, dur: 0.03, type: 'square', gain: 0.016 + p * 0.012 });
+  },
+  /** Die Kurve stürzt ab. */
+  crash() {
+    blip({ freq: 420, dur: 0.5, type: 'sawtooth', gain: 0.045, sweep: 60 });
+    setTimeout(() => blip({ freq: 150, dur: 0.34, type: 'square', gain: 0.03, sweep: 50 }), 90);
   }
 };

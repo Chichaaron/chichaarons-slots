@@ -216,6 +216,7 @@ const localBackend = {
       daily: b.daily || 0,
       timed: b.timed || 0,
       weekly: b.weekly || 0,
+      bailout: b.bailout || 0,
       balance: rec?.profile?.balance ?? 0
     };
   },
@@ -230,13 +231,21 @@ const localBackend = {
     if (!rec) throw new Error('Konto nicht gefunden.');
     rec.bonuses = rec.bonuses || {};
     const now = Date.now();
-    if (now < readyAt(rec.bonuses[kind] || 0)) throw new Error('Dieser Bonus ist noch nicht verfügbar.');
+    // Das Notfallguthaben hängt nicht an der Zeit, sondern am Kontostand.
+    if (kind === 'bailout') {
+      if (Number(rec.profile.balance || 0) > 0) {
+        throw new Error('Notfallguthaben gibt es nur bei genau 0 € Guthaben.');
+      }
+    } else if (now < readyAt(rec.bonuses[kind] || 0)) {
+      throw new Error('Dieser Bonus ist noch nicht verfügbar.');
+    }
     rec.bonuses[kind] = now;
     rec.profile.balance = Math.min(999999999999, Number(rec.profile.balance || 0) + amount);
     writeUsers(users);
     return {
       balance: rec.profile.balance, serverNow: now, amount,
-      daily: rec.bonuses.daily || 0, timed: rec.bonuses.timed || 0, weekly: rec.bonuses.weekly || 0
+      daily: rec.bonuses.daily || 0, timed: rec.bonuses.timed || 0,
+      weekly: rec.bonuses.weekly || 0, bailout: rec.bonuses.bailout || 0
     };
   }
 };
@@ -362,6 +371,7 @@ const supabaseBackend = {
       daily: data.daily ? Date.parse(data.daily) : 0,
       timed: data.timed ? Date.parse(data.timed) : 0,
       weekly: data.weekly ? Date.parse(data.weekly) : 0,
+      bailout: data.bailout ? Date.parse(data.bailout) : 0,
       balance: Number(data.balance)
     };
   },
@@ -376,7 +386,8 @@ const supabaseBackend = {
       amount: Number(data.amount),
       daily: data.daily ? Date.parse(data.daily) : 0,
       timed: data.timed ? Date.parse(data.timed) : 0,
-      weekly: data.weekly ? Date.parse(data.weekly) : 0
+      weekly: data.weekly ? Date.parse(data.weekly) : 0,
+      bailout: data.bailout ? Date.parse(data.bailout) : 0
     };
   },
 
@@ -482,7 +493,7 @@ export const store = {
   },
 
   /**
-   * @param {string} kind      'daily' | 'timed' | 'weekly'
+   * @param {string} kind      'bailout' | 'daily' | 'timed' | 'weekly'
    * @param {number} amount    Betrag (nur im lokalen Modus nötig)
    * @param {(last:number)=>number} readyAt  Zeitpunkt der nächsten Abholung (nur lokal)
    */

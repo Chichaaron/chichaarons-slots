@@ -43,6 +43,14 @@ export const GAMES = [
     screen: 'blackjack'
   },
   {
+    id: 'crash',
+    title: 'Crash',
+    tagline: 'Die Kurve steigt – zahl aus, bevor sie abstürzt.',
+    facts: ['Bis 50.000×', 'Cash-Out jederzeit', 'Eine Entscheidung'],
+    available: true,
+    screen: 'crash'
+  },
+  {
     id: 'soon',
     title: 'Weitere Minigames',
     tagline: 'In Arbeit – schau bald wieder vorbei.',

@@ -18,6 +18,7 @@ import { buildBoard, renderBoardChips, highlightWinner, clearHighlight, renderLa
 import { createWheel } from './wheel.js';
 import { createMines } from './mines.js';
 import { createBlackjack, CARD_SPEEDS, cardSpeedById } from './blackjack.js';
+import { createCrash } from './crash.js';
 import { BONUSES, bonusById, bonusStatus, nextAvailableAt, formatDuration } from './bonus.js';
 import { validateGamertag, MAX_LENGTH as TAG_MAX } from './gamertag.js';
 import { sound } from './sound.js';
@@ -48,7 +49,8 @@ const state = {
   prevScreen: 'menu',
   wheel: null,
   mines: null,
-  blackjack: null
+  blackjack: null,
+  crash: null
 };
 
 /* ==================================================================== */
@@ -138,28 +140,17 @@ function refresh(results = null) {
   renderBoardHint();
 }
 
-/** Hinweiszeile unter dem Brett – zeigt bei 0 € das Notfall-Guthaben an. */
+/**
+ * Hinweiszeile unter dem Brett.
+ * Das Notfallguthaben liegt seit Update 8 im Shop – hier steht nur noch die
+ * Bedienhilfe, bei leerem Konto mit einem Verweis dorthin.
+ */
 function renderBoardHint() {
   const hint = $('#board-hint');
-  const broke = available() <= 0 && state.ledger.total() === 0 && state.phase === 'betting';
-  if (!broke) {
-    hint.classList.remove('has-action');
-    hint.innerHTML = 'Jeton wählen, dann auf ein Feld klicken. Rechtsklick entfernt einen Jeton.';
-    return;
-  }
-  hint.classList.add('has-action');
-  hint.innerHTML = '';
-  const btn = document.createElement('button');
-  btn.className = 'btn btn-gold btn-sm';
-  btn.textContent = `Notfall-Guthaben: +${money(APP_CONFIG.bailout)} virtuelles Spielgeld`;
-  btn.onclick = async () => {
-    credit(APP_CONFIG.bailout);
-    state.profile.stats.bailouts = (state.profile.stats.bailouts || 0) + 1;
-    await persist();
-    toast(`${money(APP_CONFIG.bailout)} gutgeschrieben.`, 'good');
-    refresh();
-  };
-  hint.appendChild(btn);
+  hint.classList.remove('has-action');
+  hint.innerHTML = available() <= 0 && state.ledger.total() === 0
+    ? 'Guthaben aufgebraucht – im Shop wartet das Notfallguthaben.'
+    : 'Jeton wählen, dann auf ein Feld klicken. Rechtsklick entfernt einen Jeton.';
 }
 
 /* ==================================================================== */
@@ -443,7 +434,9 @@ function applyCustomChip() {
  * Countdown weiterlaufen kann, ohne den Server jede Sekunde zu fragen.
  * Entscheiden darf über eine Abholung trotzdem nur der Server.
  */
-const bonusData = { serverNow: 0, fetchedAt: 0, daily: 0, timed: 0, weekly: 0, loaded: false };
+const bonusData = {
+  serverNow: 0, fetchedAt: 0, daily: 0, timed: 0, weekly: 0, bailout: 0, loaded: false
+};
 let bonusBusy = false;
 
 /** Aktuelle Serverzeit, geschätzt aus dem zuletzt gemeldeten Wert. */
@@ -456,6 +449,7 @@ function applyBonusState(data) {
   bonusData.daily = data.daily || 0;
   bonusData.timed = data.timed || 0;
   bonusData.weekly = data.weekly || 0;
+  bonusData.bailout = data.bailout || 0;
   bonusData.loaded = true;
 }
 
@@ -471,7 +465,8 @@ async function refreshBonusState() {
   updateBonusDot();
 }
 
-const bonusList = () => bonusStatus(bonusData, serverNow());
+/** Das Notfallguthaben hängt am Kontostand, deshalb wandert er mit hinein. */
+const bonusList = () => bonusStatus(bonusData, serverNow(), { balance: available() });
 
 /** Goldener Punkt am Shop-Eintrag, sobald mindestens ein Bonus bereitsteht. */
 function updateBonusDot() {
@@ -504,6 +499,7 @@ function renderBonusCards() {
         <p class="bonus-blurb">${bonus.blurb}</p>
         <p class="bonus-timer"></p>
         <button class="btn btn-gold" type="button">ABHOLEN</button>`;
+      if (bonus.condition === 'broke') card.classList.add('bonus-card-bailout');
       card.querySelector('button').onclick = () => claimBonus(bonus.id);
       host.appendChild(card);
     }
@@ -521,7 +517,9 @@ function renderBonusCards() {
     button.textContent = status.available ? 'ABHOLEN' : 'NICHT VERFÜGBAR';
     timer.innerHTML = status.available
       ? 'Jetzt abholbar'
-      : `Nächster Bonus in <b>${formatDuration(status.remainingMs)}</b>`;
+      : status.condition === 'broke'
+        ? status.note
+        : `Nächster Bonus in <b>${formatDuration(status.remainingMs)}</b>`;
   }
 }
 
@@ -545,12 +543,18 @@ async function claimBonus(kind) {
     state.profile.balance = Math.max(0, result.balance - pending);
     paintBalance(available());
     ensureAffordableChip();
+    if (kind === 'bailout') {
+      state.profile.stats.bailouts = (state.profile.stats.bailouts || 0) + 1;
+      await persist();
+    }
     sound.win();
     toast(`${money(result.amount ?? bonus.amount)} gutgeschrieben!`, 'good');
     renderThemes();
     if (getScreen() === 'game') refresh();
     state.mines?.render();
     state.blackjack?.render();
+    state.crash?.render();
+    renderBoardHint();
   } catch (err) {
     toast(err.message || 'Bonus konnte nicht abgeholt werden.', 'warn');
     await refreshBonusState();
@@ -633,6 +637,7 @@ function applyTheme(id) {
   if (themeId === DEFAULT_THEME) delete document.documentElement.dataset.theme;
   else document.documentElement.dataset.theme = themeId;
   state.wheel?.refreshTheme();
+  state.crash?.render();          // der Graph liest seine Farben neu ein
 }
 
 /** Kauf: prüft Besitz und Guthaben, bucht ab und aktiviert das Design. */
@@ -749,6 +754,13 @@ function renderGames() {
     const art = document.createElement('div');
     art.className = `game-art game-art-${game.available ? game.id : 'soon'}`;
     art.setAttribute('aria-hidden', 'true');
+    if (game.id === 'crash') {
+      art.innerHTML = `<svg viewBox="0 0 120 60" aria-hidden="true" class="art-crash">
+          <path class="art-crash-fill" d="M6 54 C40 52 62 44 80 28 C92 17 100 10 114 6 L114 54 Z"/>
+          <path class="art-crash-line" d="M6 54 C40 52 62 44 80 28 C92 17 100 10 114 6"/>
+          <circle class="art-crash-dot" cx="114" cy="6" r="4.5"/>
+        </svg>`;
+    }
     if (game.id === 'blackjack') {
       art.innerHTML = `<span class="art-card art-card-1">A<i>&#9824;</i></span>
         <span class="art-card art-card-2">K<i>&#9829;</i></span>
@@ -809,6 +821,7 @@ function applySession(session) {
   renderStats(state.profile.stats);
   renderThemes();
   state.blackjack?.render();
+  state.crash?.render();
   $('#gamertag-msg').hidden = true;
   refreshBonusState();
 }
@@ -885,7 +898,7 @@ async function logout() {
  * wenn sie beim Öffnen etwas vorbereiten müssen.
  */
 async function navigate(target) {
-  const needsAccount = ['game', 'games', 'mines', 'blackjack', 'shop', 'settings'];
+  const needsAccount = ['game', 'games', 'mines', 'blackjack', 'crash', 'shop', 'settings'];
   if (needsAccount.includes(target) && !state.profile) return showScreen('auth');
 
   // Eine laufende Mines-Runde hat bereits Geld auf dem Tisch: nicht versehentlich verlassen.
@@ -916,9 +929,26 @@ async function navigate(target) {
     return;
   }
 
+  // Eine laufende Crash-Runde ebenso: der Einsatz ist schon gesetzt.
+  if (getScreen() === 'crash' && target !== 'crash' && state.crash?.isLive()) {
+    const leave = await confirmDialog(
+      'Runde läuft noch',
+      'Dein Einsatz ist bereits gesetzt. Wenn du die Runde jetzt verlässt, ist er verloren.',
+      'Trotzdem verlassen'
+    );
+    if (!leave) return;
+    await state.crash.abandon();
+  }
+
   if (target === 'blackjack') {
     state.blackjack.render();
     showScreen('blackjack');
+    return;
+  }
+
+  if (target === 'crash') {
+    showScreen('crash');
+    state.crash.render();
     return;
   }
 
@@ -1122,6 +1152,22 @@ async function boot() {
   });
   state.blackjack.init();
 
+  // Crash bekommt dieselbe schmale Schnittstelle wie Mines und Blackjack.
+  state.crash = createCrash({
+    available,
+    spend: (n) => { state.profile.balance -= n; },
+    credit,
+    persist,
+    paintBalance: () => paintBalance(available()),
+    recordRound,
+    gameStats,
+    getPref,
+    setPref,
+    toast,
+    sound
+  });
+  state.crash.init();
+
   buildCardSpeedOptions();
   applySettings();
 
@@ -1242,7 +1288,11 @@ window.__grandVert = {
   get profile() { return state.profile; },
   wheel: () => state.wheel?.debugState(),
   mines: () => state.mines?.debug(),
-  blackjack: () => state.blackjack?.debug()
+  blackjack: () => state.blackjack?.debug(),
+  crash: () => state.crash?.debug(),
+  crashGame: () => state.crash,
+  /** Speichert den aktuellen Stand – von den automatisierten Tests genutzt. */
+  save: () => persist()
 };
 
 boot();

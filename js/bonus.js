@@ -13,6 +13,15 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 export const BONUSES = [
   {
+    id: 'bailout',
+    label: 'Notfallguthaben',
+    amount: 500,
+    blurb: 'Nur abholbar, wenn dein Guthaben genau 0 € beträgt.',
+    /** Kein Zeitfenster – die Bedingung ist das leere Konto. */
+    condition: 'broke',
+    note: 'Nicht verfügbar – Guthaben muss 0 € sein.'
+  },
+  {
     id: 'daily',
     label: 'Tagesbonus',
     amount: 10000,
@@ -58,6 +67,8 @@ export function weekStart(ms) {
  * @returns {number} UTC-Zeitstempel; 0 bedeutet "sofort".
  */
 export function nextAvailableAt(kind, lastMs) {
+  // Das Notfallguthaben hat keinen Zyklus – es hängt allein am Guthaben.
+  if (kind === 'bailout') return 0;
   if (!lastMs) return 0;
   if (kind === 'timed') return lastMs + TIMED_INTERVAL_MS;
   if (kind === 'daily') return dayStart(lastMs) + DAY_MS;
@@ -69,25 +80,32 @@ export const isAvailable = (kind, lastMs, nowMs) => nowMs >= nextAvailableAt(kin
 
 /**
  * Zustand aller Boni.
- * @param {{daily?:number, timed?:number, weekly?:number}} last  Zeitstempel der letzten Abholungen
- * @param {number} nowMs  aktuelle (Server-)Zeit
+ * @param {{daily?:number, timed?:number, weekly?:number, bailout?:number}} last
+ *        Zeitstempel der letzten Abholungen
+ * @param {number} nowMs   aktuelle (Server-)Zeit
+ * @param {{balance?:number}} context  zusätzliche Bedingungen (Guthaben)
  */
-export function bonusStatus(last, nowMs) {
+export function bonusStatus(last, nowMs, context = {}) {
+  const balance = Number(context.balance ?? 0);
   return BONUSES.map((bonus) => {
     const lastMs = last?.[bonus.id] || 0;
     const readyAt = nextAvailableAt(bonus.id, lastMs);
+    // "broke" heißt: exakt 0 € – bei 1 € gibt es nichts.
+    const conditionMet = bonus.condition === 'broke' ? balance <= 0 : true;
     return {
       ...bonus,
       lastMs,
       readyAt,
-      available: nowMs >= readyAt,
+      conditionMet,
+      available: conditionMet && nowMs >= readyAt,
       remainingMs: Math.max(0, readyAt - nowMs)
     };
   });
 }
 
 /** Ist mindestens einer der Boni abholbar? */
-export const anyAvailable = (last, nowMs) => bonusStatus(last, nowMs).some((b) => b.available);
+export const anyAvailable = (last, nowMs, context = {}) =>
+  bonusStatus(last, nowMs, context).some((b) => b.available);
 
 /** 9045000 -> "02:30:45" · 45000 -> "00:00:45" */
 export function formatDuration(ms) {

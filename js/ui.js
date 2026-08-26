@@ -20,7 +20,12 @@ export function showScreen(name) {
     el.hidden = el.id !== `screen-${name}`;
   }
   currentScreen = name;
+  // Auf schmalen Geräten scrollt nicht das Fenster, sondern der <body>
+  // (html/body haben height:100%). Ohne beides startet ein neuer Bildschirm
+  // dort, wo der vorherige stehengeblieben ist.
   window.scrollTo({ top: 0 });
+  document.body.scrollTop = 0;
+  document.documentElement.scrollTop = 0;
 }
 
 export const getScreen = () => currentScreen;
