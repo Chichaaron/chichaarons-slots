@@ -19,6 +19,15 @@ export const MAX_BET = 999999999;
  */
 export const MAX_BALANCE = 999999999999;
 
+/** Jeton-Werte der Einsatzleisten (Roulette und Mines nutzen dieselben). */
+export const CHIPS = [10, 20, 50, 100, 200, 500, 1000];
+
+/** Kennung des MAX-Jetons – sein Betrag wird bei jedem Klick neu bestimmt. */
+export const MAX_CHIP = 'max';
+
+/** Einsatz, den MAX gerade bedeutet: das Kleinere aus Guthaben und Limit. */
+export const maxBetFor = (balance) => Math.max(0, Math.min(Math.floor(balance), MAX_BET));
+
 export function createLedger() {
   /** @type {Map<string, number>} Feld-ID -> gesetzter Betrag */
   const map = new Map();

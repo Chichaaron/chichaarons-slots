@@ -27,6 +27,14 @@ export const GAMES = [
     screen: 'game'          // welcher Bildschirm geöffnet wird
   },
   {
+    id: 'mines',
+    title: 'Mines',
+    tagline: 'Deck Felder auf, weich den Minen aus, zahl rechtzeitig aus.',
+    facts: ['4×4 bis 7×7', 'Multiplikator steigt', 'Cash-Out jederzeit'],
+    available: true,
+    screen: 'mines'
+  },
+  {
     id: 'soon',
     title: 'Weitere Minigames',
     tagline: 'In Arbeit – schau bald wieder vorbei.',

@@ -12,10 +12,11 @@
 import { APP_CONFIG } from './config.js';
 import { spinNumber, resolveRound, betInfo, money, colorOf, COLOR_LABEL } from './roulette.js';
 import { store, loadSettings, saveSettings } from './storage.js';
-import { createLedger, MAX_BET, MAX_BALANCE } from './bets.js';
+import { createLedger, MAX_BET, MAX_BALANCE, CHIPS, MAX_CHIP, maxBetFor } from './bets.js';
 import { GAMES, THEMES, DEFAULT_THEME, themeById, safeThemeId } from './catalog.js';
 import { buildBoard, renderBoardChips, highlightWinner, clearHighlight, renderLastNumbers } from './table.js';
 import { createWheel } from './wheel.js';
+import { createMines } from './mines.js';
 import { sound } from './sound.js';
 import {
   $, $$, showScreen, getScreen, toast, paintBalance, paintUsername, renderBetList,
@@ -23,12 +24,6 @@ import {
 } from './ui.js';
 
 const SPIN_DURATION = { fast: 4200, normal: 6400, cinematic: 8600 };
-
-/* ----- Jetons an der Einsatzleiste (Reihenfolge = Anzeige) ----- */
-const CHIPS = [10, 20, 50, 100, 200, 500, 1000];
-
-/** Kennung des MAX-Jetons. Sein Betrag wird bei jedem Klick neu bestimmt. */
-const MAX_CHIP = 'max';
 
 /* ----- Gratis-Bonus im Shop: hier die beiden Zahlen anpassen ----- */
 const BONUS = {
@@ -69,7 +64,7 @@ function credit(amount) {
 }
 
 /** Einsatz, den der MAX-Jeton gerade bedeutet: das Kleinere aus Guthaben und Limit. */
-const maxBetAmount = () => Math.max(0, Math.min(available(), MAX_BET));
+const maxBetAmount = () => maxBetFor(available());
 
 /** Betrag des gerade gewählten Jetons (MAX wird live berechnet). */
 const chipAmount = () => (state.chipValue === MAX_CHIP ? maxBetAmount() : state.chipValue);
@@ -107,7 +102,10 @@ function refresh(results = null) {
   renderBetList(entries, results);
   renderBoardChips($('#board'), state.ledger.map);
   renderStats(state.profile.stats);
-  renderLastNumbers($('#last-numbers'), (state.profile.history || []).map((h) => h.winning));
+  renderLastNumbers(
+    $('#last-numbers'),
+    (state.profile.history || []).filter((h) => h.game !== 'mines').map((h) => h.winning)
+  );
 
   // Jetons deaktivieren, für die das Guthaben nicht reicht
   for (const chip of $$('#chips .chip')) {
@@ -306,25 +304,38 @@ async function letItRide() {
   });
 }
 
-function updateStats(round) {
+/**
+ * Trägt eine abgeschlossene Runde in Statistik und Verlauf ein.
+ * Wird von beiden Spielen benutzt; `entry.game` unterscheidet sie.
+ */
+function recordRound(entry) {
+  if (!state.profile) return;
   const s = state.profile.stats;
   s.rounds += 1;
-  s.wagered += round.staked;
-  if (round.net > 0) s.won += round.net;
-  else s.lost += Math.abs(round.net);
-  s.biggestWin = Math.max(s.biggestWin || 0, round.net);
+  s.wagered += entry.staked;
+  if (entry.net > 0) s.won += entry.net;
+  else s.lost += Math.abs(entry.net);
+  s.biggestWin = Math.max(s.biggestWin || 0, entry.net);
   s.bestBalance = Math.max(s.bestBalance || 0, state.profile.balance);
 
   state.profile.history.unshift({
     at: new Date().toISOString(),
+    balance: state.profile.balance,
+    ...entry
+  });
+  state.profile.history = state.profile.history.slice(0, APP_CONFIG.maxHistory);
+  renderStats(s);
+}
+
+function updateStats(round) {
+  recordRound({
+    game: 'roulette',
     winning: round.winning,
     color: round.color,
     staked: round.staked,
     net: round.net,
-    balance: state.profile.balance,
     bets: round.results.map((r) => ({ id: r.id, amount: r.amount, net: r.net }))
   });
-  state.profile.history = state.profile.history.slice(0, APP_CONFIG.maxHistory);
 }
 
 function startNextRound(repeat) {
@@ -600,6 +611,7 @@ function renderGames() {
   for (const game of GAMES) {
     const card = document.createElement(game.available ? 'button' : 'article');
     card.className = `game-card${game.available ? '' : ' is-locked'}`;
+    card.dataset.game = game.id;
     if (game.available) {
       card.type = 'button';
       card.onclick = () => openGame(game.id);
@@ -607,9 +619,15 @@ function renderGames() {
       card.setAttribute('aria-disabled', 'true');
     }
 
+    // Vorschaubild: eigene Grafik je Spiel, sonst das Platzhaltermuster
     const art = document.createElement('div');
-    art.className = `game-art game-art-${game.id === 'roulette' ? 'roulette' : 'soon'}`;
+    art.className = `game-art game-art-${game.available ? game.id : 'soon'}`;
     art.setAttribute('aria-hidden', 'true');
+    if (game.id === 'mines') {
+      const marks = { 2: 'is-coin', 4: 'is-mine', 6: 'is-coin', 7: 'is-coin' };
+      art.innerHTML = Array.from({ length: 9 },
+        (_, i) => `<span class="art-tile ${marks[i] || ''}"></span>`).join('');
+    }
     card.appendChild(art);
 
     const head = document.createElement('div');
@@ -729,9 +747,26 @@ async function logout() {
  * Wechselt den Bildschirm. Neue Bereiche brauchen hier nur einen Eintrag,
  * wenn sie beim Öffnen etwas vorbereiten müssen.
  */
-function navigate(target) {
-  const needsAccount = ['game', 'games', 'shop', 'settings'];
+async function navigate(target) {
+  const needsAccount = ['game', 'games', 'mines', 'shop', 'settings'];
   if (needsAccount.includes(target) && !state.profile) return showScreen('auth');
+
+  // Eine laufende Mines-Runde hat bereits Geld auf dem Tisch: nicht versehentlich verlassen.
+  if (getScreen() === 'mines' && target !== 'mines' && state.mines?.isLive()) {
+    const leave = await confirmDialog(
+      'Runde läuft noch',
+      'Dein Einsatz ist bereits gesetzt. Wenn du die Runde jetzt verlässt, ist er verloren.',
+      'Trotzdem verlassen'
+    );
+    if (!leave) return;
+    await state.mines.abandon();
+  }
+
+  if (target === 'mines') {
+    state.mines.render();
+    showScreen('mines');
+    return;
+  }
 
   if (target === 'game') {
     showScreen('game');
@@ -834,6 +869,20 @@ async function boot() {
   state.wheel = createWheel($('#wheel-canvas'), {
     onTick: (left) => sound.tick(left)
   });
+
+  // Mines bekommt nur eine schmale Schnittstelle zum Konto – die Roulette-Logik
+  // bleibt davon vollständig unberührt.
+  state.mines = createMines({
+    available,
+    spend: (n) => { state.profile.balance -= n; },
+    credit,
+    persist,
+    paintBalance: () => paintBalance(available()),
+    recordRound,
+    toast,
+    sound
+  });
+  state.mines.init();
   applySettings();
 
   // Navigation
@@ -932,7 +981,8 @@ window.__grandVert = {
   get phase() { return state.phase; },
   get bets() { return [...state.ledger.map.entries()]; },
   get profile() { return state.profile; },
-  wheel: () => state.wheel?.debugState()
+  wheel: () => state.wheel?.debugState(),
+  mines: () => state.mines?.debug()
 };
 
 boot();
