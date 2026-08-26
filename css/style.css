@@ -37,26 +37,38 @@
   --bg-glow-2: #10281c;
 
   /* --- Flächen und Linien --- */
-  --surface: var(--surface);
-  --surface-hi: var(--surface-hi);
-  --sunken: var(--sunken);
-  --line: var(--line);
+  --surface: rgba(255, 255, 255, .05);
+  --surface-hi: rgba(255, 255, 255, .1);
+  --sunken: rgba(0, 0, 0, .3);
+  --line: rgba(255, 255, 255, .12);
   --line-hi: rgba(255, 255, 255, .22);
-  --sheen: var(--surface);
+  --sheen: rgba(255, 255, 255, .06);
   --panel-1: rgba(20, 57, 42, .72);
   --panel-2: rgba(8, 23, 15, .93);
   --bar-bg: rgba(6, 17, 9, .72);
   --scrim: rgba(3, 8, 5, .72);
 
+  /* --- Ränder klickbarer Elemente (jedes Theme setzt eigene Werte) --- */
+  --edge: rgba(212, 175, 106, .5);        /* Rand im Ruhezustand */
+  --edge-hi: rgba(242, 221, 171, .95);    /* Rand beim Überfahren / aktiv */
+  --edge-glow: rgba(212, 175, 106, .3);   /* weicher Schein */
+  --edge-top: rgba(255, 255, 255, .14);   /* Lichtkante oben */
+  --press: rgba(0, 0, 0, .4);             /* Schatten im gedrückten Zustand */
+
   /* --- Gold-Akzente --- */
-  --gold-line: var(--gold-line);
+  --gold-line: rgba(212, 175, 106, .3);
   --gold-line-hi: rgba(212, 175, 106, .58);
-  --gold-soft: var(--gold-soft);
+  --gold-soft: rgba(212, 175, 106, .14);
+
+  /* --- Mines --- */
+  --mine-body: #16181c;
+  --mine-spike: #d9333a;
+  --mine-shine: rgba(255, 255, 255, .9);
 
   /* --- Spielbrett --- */
   --board-felt: #0f2c1e;
-  --cell-base: var(--surface);
-  --cell-line: var(--line);
+  --cell-base: rgba(255, 255, 255, .05);
+  --cell-line: rgba(255, 255, 255, .13);
 
   /* --- Rad (wird von js/wheel.js ausgelesen) --- */
   --wheel-green: #116b45;
@@ -902,6 +914,31 @@ button, input, select { font: inherit; color: inherit; }
 }
 .game-card:hover .game-art-roulette::after { transform: translateY(30px) rotate(42deg); }
 
+/* Mines-Vorschau: Minifeld mit Münzen und einer Mine */
+.game-art-mines {
+  display: grid; gap: 9px;
+  grid-template-columns: repeat(3, 30px);
+  grid-template-rows: repeat(3, 30px);
+  place-content: center;             /* Raster mittig im Vorschaufeld */
+  place-items: stretch;              /* .game-art zentriert sonst jede Kachel auf 0 */
+  background: radial-gradient(120% 100% at 50% 0%, var(--felt-600), var(--felt-800));
+}
+.art-tile {
+  border-radius: 9px; border: 1px solid var(--edge);
+  background: var(--surface-hi); box-shadow: inset 0 1px 0 var(--edge-top);
+  transition: transform .45s cubic-bezier(.2, .8, .3, 1);
+}
+.art-tile.is-coin {
+  background: radial-gradient(circle at 35% 30%, var(--gold-bright), var(--gold) 62%, var(--gold-dim));
+  border-color: var(--gold-line-hi);
+}
+.art-tile.is-mine {
+  background: radial-gradient(circle at 50% 50%, var(--mine-body) 42%, rgba(217, 51, 58, .45));
+  border-color: var(--red-bright);
+}
+.game-card:hover .art-tile.is-coin { transform: translateY(-3px); }
+.game-card:hover .art-tile.is-mine { transform: scale(1.08); }
+
 /* Platzhalter-Vorschau */
 .game-art-soon {
   background: repeating-linear-gradient(135deg, var(--surface) 0 14px, transparent 14px 28px);
@@ -958,6 +995,209 @@ button, input, select { font: inherit; color: inherit; }
 .theme-hint { font-size: 11.5px; color: var(--loss); text-align: center; }
 
 .page-head-balance { margin-left: auto; }
+
+/* ---------- 10d Mines ---------- */
+#screen-mines { display: flex; flex-direction: column; min-height: 100dvh; }
+.mines-layout {
+  flex: 1; display: grid; gap: 20px; align-items: start;
+  grid-template-columns: 330px minmax(0, 1fr);
+  padding: 20px clamp(16px, 3vw, 34px) 34px;
+  width: min(1180px, 100%); margin-inline: auto;
+}
+
+/* --- Einstellungen --- */
+.mines-panel {
+  display: grid; gap: 20px; padding: 20px; border-radius: 18px;
+  border: 1px solid var(--gold-line);
+  background: linear-gradient(180deg, var(--panel-1), var(--panel-2));
+  box-shadow: var(--shadow-md);
+  transition: opacity .25s;
+}
+.mines-panel.is-locked { opacity: .62; }
+.mines-step { display: grid; gap: 10px; }
+.mines-step-title {
+  font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--gold);
+  display: flex; align-items: center; gap: 9px;
+}
+.mines-step-no {
+  width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 11px; font-weight: 800; color: var(--on-gold);
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+}
+
+.board-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.board-option {
+  display: grid; gap: 2px; padding: 11px 8px; cursor: pointer; text-align: center;
+  border-radius: var(--radius-sm); border: 1.5px solid var(--edge);
+  background: var(--surface); color: var(--text);
+  box-shadow: inset 0 1px 0 var(--edge-top);
+  transition: transform .14s, border-color .18s, background .18s, box-shadow .2s;
+}
+.board-option b { font-size: 15px; }
+.board-option span { font-size: 9.5px; letter-spacing: .12em; color: var(--muted); }
+.board-option:hover:not(:disabled) {
+  border-color: var(--edge-hi); transform: translateY(-2px);
+  box-shadow: 0 0 0 2px var(--edge-glow), 0 6px 16px var(--press);
+}
+.board-option:active:not(:disabled) { transform: translateY(0) scale(.98); box-shadow: inset 0 2px 7px var(--press); }
+.board-option.is-active {
+  border-color: var(--edge-hi); background: var(--gold-soft);
+  box-shadow: inset 0 0 0 1px var(--edge-glow), 0 0 0 2px var(--edge-glow);
+}
+.board-option.is-active span { color: var(--accent-text); }
+.board-option:disabled { cursor: default; }
+
+/* Minen-Slider */
+.mines-slider-row { display: flex; align-items: baseline; gap: 9px; }
+.mines-count { font-size: 26px; font-weight: 800; color: var(--accent-text); font-variant-numeric: tabular-nums; }
+.mines-max { font-size: 12px; color: var(--muted); }
+.mines-slider {
+  -webkit-appearance: none; appearance: none; width: 100%; height: 26px;
+  background: transparent; cursor: pointer;
+}
+.mines-slider::-webkit-slider-runnable-track {
+  -webkit-appearance: none; appearance: none;
+  height: 8px; border-radius: 99px; border: 1px solid var(--edge);
+  background: linear-gradient(90deg, var(--gold) 0 var(--fill, 0%), var(--sunken) var(--fill, 0%) 100%);
+}
+.mines-slider::-moz-range-track {
+  height: 8px; border-radius: 99px; border: 1px solid var(--edge);
+  background: linear-gradient(90deg, var(--gold) 0 var(--fill, 0%), var(--sunken) var(--fill, 0%) 100%);
+}
+.mines-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 22px; height: 22px; margin-top: -8px;
+  border-radius: 50%; border: 2px solid var(--edge-hi);
+  background: radial-gradient(circle at 35% 30%, var(--gold-bright), var(--gold) 60%, var(--gold-dim));
+  box-shadow: 0 0 0 3px var(--edge-glow), 0 3px 8px var(--press);
+  transition: transform .12s;
+}
+.mines-slider::-moz-range-thumb {
+  width: 22px; height: 22px; border-radius: 50%; border: 2px solid var(--edge-hi);
+  background: radial-gradient(circle at 35% 30%, var(--gold-bright), var(--gold) 60%, var(--gold-dim));
+  box-shadow: 0 0 0 3px var(--edge-glow), 0 3px 8px var(--press);
+}
+.mines-slider:hover:not(:disabled)::-webkit-slider-thumb { transform: scale(1.12); }
+.mines-slider:disabled { cursor: not-allowed; opacity: .5; }
+
+.mines-chips { gap: 7px; }
+.mines-chips .chip { width: 42px; height: 42px; font-size: 10.5px; }
+.mines-chips .chip-max { width: auto; min-width: 78px; height: 42px; padding: 0 12px; }
+.mines-chips .chip-max b { font-size: 12.5px; }
+.mines-chips .chip-max small { font-size: 8.5px; }
+.mines-custom-row input { width: 100%; }
+.mines-custom-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 7px; }
+.mines-bet-line { font-size: 12.5px; color: var(--muted); }
+.mines-bet-line b { color: var(--accent-text); font-variant-numeric: tabular-nums; }
+
+.btn-lg { padding: 14px 20px; font-size: 15px; letter-spacing: .1em; }
+.mines-hint { font-size: 11.5px; color: var(--muted); text-align: center; margin-top: -10px; }
+
+/* --- Spielfeld --- */
+.mines-stage { display: grid; gap: 16px; justify-items: center; }
+.mines-stats {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; width: min(560px, 100%);
+}
+.mines-stat {
+  display: grid; gap: 2px; padding: 9px 12px; border-radius: var(--radius-sm); text-align: center;
+  background: var(--sunken); border: 1px solid var(--gold-line);
+}
+.mines-stat .stat-value { font-size: 19px; }
+.mines-mult { color: var(--accent-text); }
+.mines-mult.pulse { animation: pulseVal .45s ease; }
+
+.mines-grid {
+  display: grid; gap: clamp(5px, 1vw, 9px); width: min(560px, 100%);
+  grid-template-columns: repeat(var(--cols, 5), minmax(0, 1fr));
+}
+.mines-grid.is-empty {
+  grid-template-columns: 1fr; aspect-ratio: 1.6; place-items: center;
+  border: 1.5px dashed var(--line); border-radius: 18px;
+}
+.mines-empty { color: var(--muted); font-size: 13.5px; }
+
+.mine-tile {
+  aspect-ratio: 1; padding: 0; border: 0; background: none; cursor: pointer;
+  perspective: 700px; -webkit-tap-highlight-color: transparent;
+}
+.mine-tile:disabled { cursor: default; }
+.tile-inner {
+  position: relative; display: block; width: 100%; height: 100%;
+  transform-style: preserve-3d;
+  transition: transform .45s cubic-bezier(.2, .8, .3, 1);
+}
+.mine-tile.is-revealed .tile-inner { transform: rotateY(180deg); }
+.tile-face {
+  position: absolute; inset: 0; display: grid; place-items: center;
+  border-radius: 12px; backface-visibility: hidden; -webkit-backface-visibility: hidden;
+  border: 1.5px solid var(--edge);
+  box-shadow: inset 0 1px 0 var(--edge-top);
+}
+.tile-front {
+  background: linear-gradient(180deg, var(--surface-hi), var(--surface));
+  transition: border-color .18s, box-shadow .18s, transform .12s;
+}
+.tile-back { transform: rotateY(180deg); }
+.tile-svg { width: 62%; height: 62%; }
+.tile-coin-dim { opacity: .32; filter: saturate(.4); transition: opacity .18s; }
+.mine-tile:not(:disabled):hover .tile-front {
+  border-color: var(--edge-hi);
+  box-shadow: inset 0 1px 0 var(--edge-top), 0 0 0 2px var(--edge-glow), 0 6px 16px var(--press);
+}
+.mine-tile:not(:disabled):hover .tile-coin-dim { opacity: .7; }
+.mine-tile:not(:disabled):active .tile-front { transform: scale(.95); }
+
+.mine-tile.is-safe .tile-back {
+  background: linear-gradient(180deg, var(--gold-soft), var(--surface));
+  border-color: var(--gold-line-hi);
+  animation: tileSafe .5s ease .2s both;
+}
+.mine-tile.is-mine .tile-back {
+  background: radial-gradient(circle at 50% 45%, rgba(217, 51, 58, .38), var(--surface) 72%);
+  border-color: var(--red-bright);
+  animation: tileBoom .5s cubic-bezier(.2, 1.4, .4, 1) .2s both;
+}
+.mine-tile.is-ghost .tile-back { opacity: .48; animation: none; }
+@keyframes tileSafe {
+  0% { box-shadow: inset 0 0 0 1px var(--gold-line-hi); }
+  45% { box-shadow: inset 0 0 0 2px var(--gold-bright), 0 0 18px var(--edge-glow); }
+  100% { box-shadow: inset 0 1px 0 var(--edge-top); }
+}
+@keyframes tileBoom {
+  0% { transform: rotateY(180deg) scale(.86); }
+  55% { transform: rotateY(180deg) scale(1.07); box-shadow: 0 0 24px rgba(217, 51, 58, .6); }
+  100% { transform: rotateY(180deg) scale(1); }
+}
+
+.mines-result {
+  display: grid; gap: 3px; justify-items: center; text-align: center;
+  padding: 13px 22px; border-radius: var(--radius); width: min(560px, 100%);
+  border: 1px solid var(--edge); animation: popUp .3s cubic-bezier(.2, 1.2, .4, 1) both;
+}
+.mines-result strong { font-size: 19px; letter-spacing: .04em; }
+.mines-result span { font-size: 13px; color: var(--muted); }
+.mines-result .mines-result-net { font-size: 17px; font-weight: 700; margin-top: 3px; }
+.mines-result.is-win { border-color: var(--win); background: rgba(74, 222, 128, .1); }
+.mines-result.is-win strong, .mines-result.is-win .mines-result-net { color: var(--win); }
+.mines-result.is-loss { border-color: var(--loss); background: rgba(217, 51, 58, .12); }
+.mines-result.is-loss strong, .mines-result.is-loss .mines-result-net { color: var(--loss); }
+
+.mines-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: center; }
+.mines-cash { display: grid; gap: 1px; min-width: 220px; text-align: center; }
+.mines-cash small { font-size: 11px; font-weight: 700; opacity: .8; letter-spacing: 0; }
+
+@media (max-width: 900px) {
+  .mines-layout { grid-template-columns: minmax(0, 1fr); }
+  .mines-panel { order: 2; }
+  .mines-stage { order: 1; }
+  .mines-grid, .mines-stats, .mines-result { width: min(460px, 100%); }
+}
+@media (max-width: 480px) {
+  .mines-layout { padding: 14px 12px 28px; gap: 14px; }
+  .mines-stat .stat-value { font-size: 16px; }
+  .mines-chips .chip { width: 38px; height: 38px; font-size: 9.5px; }
+  .mines-chips .chip-max { min-width: 70px; height: 38px; }
+  .tile-face { border-radius: 9px; }
+}
 
 /* ---------- 11 Responsive ---------- */
 @media (max-width: 1080px) {
