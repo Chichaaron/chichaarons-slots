@@ -119,10 +119,10 @@ export function timeForMultiplier(m) {
 }
 
 /** Auszahlung bei einem Cash-Out – immer auf volle Euro abgerundet. */
-export const payoutFor = (bet, multiplier) => Math.floor(bet * multiplier);
+export const crashPayout = (bet, multiplier) => Math.floor(bet * multiplier);
 
 /** 2.5 -> "2,50×" */
-export const fmtMult = (m) =>
+export const fmtCrashMult = (m) =>
   `${(Math.floor(m * 100) / 100).toLocaleString('de-DE', {
     minimumFractionDigits: 2, maximumFractionDigits: 2
   })}×`;
@@ -311,7 +311,7 @@ export function createCrash(api) {
 
     const multiplier = currentMultiplier(now);
     state.cashedAt = multiplier;
-    state.payout = payoutFor(state.bet, multiplier);
+    state.payout = crashPayout(state.bet, multiplier);
 
     // Das Geld ist jetzt endgültig gutgeschrieben. Der weitere Verlauf der
     // Kurve ändert daran nichts mehr.
@@ -389,7 +389,7 @@ export function createCrash(api) {
 
   function paintLive() {
     const multEl = $('#crash-mult');
-    if (multEl) multEl.textContent = fmtMult(state.multiplier);
+    if (multEl) multEl.textContent = fmtCrashMult(state.multiplier);
 
     // Vor der Runde gibt es noch nichts auszuzahlen; ist schon ausgezahlt,
     // steht der Betrag fest und läuft NICHT mehr mit dem Multiplikator mit.
@@ -398,7 +398,7 @@ export function createCrash(api) {
     const payoutText = secured || state.phase === 'ended'
       ? money(state.payout)
       : live
-        ? money(payoutFor(state.bet || 0, state.multiplier))
+        ? money(crashPayout(state.bet || 0, state.multiplier))
         : '—';
 
     const label = $('#crash-payout-label');
@@ -413,7 +413,7 @@ export function createCrash(api) {
     const cash = $('#crash-cash');
     if (cash && !secured) {
       const small = cash.querySelector('small');
-      if (small) small.textContent = live ? money(payoutFor(state.bet || 0, state.multiplier)) : '—';
+      if (small) small.textContent = live ? money(crashPayout(state.bet || 0, state.multiplier)) : '—';
     }
 
     // Gesichert-Schild: zeigt dauerhaft, bei welchem Wert ausgestiegen wurde
@@ -422,7 +422,7 @@ export function createCrash(api) {
       badge.hidden = !secured;
       if (secured) {
         badge.innerHTML = `<span class="crash-secured-label">Gesichert</span>
-          <b>${fmtMult(state.cashedAt)}</b>
+          <b>${fmtCrashMult(state.cashedAt)}</b>
           <span class="crash-secured-net">${signedMoney(state.payout - state.bet)}</span>`;
       }
     }
@@ -431,7 +431,7 @@ export function createCrash(api) {
   /** Kurze Rückmeldung direkt beim Auszahlen – die Runde läuft dabei weiter. */
   function showSecured() {
     paintLive();
-    api.toast(`${money(state.payout)} gesichert bei ${fmtMult(state.cashedAt)}.`, 'good');
+    api.toast(`${money(state.payout)} gesichert bei ${fmtCrashMult(state.cashedAt)}.`, 'good');
   }
 
   function showResult(won, net) {
@@ -441,10 +441,10 @@ export function createCrash(api) {
     box.className = `crash-result ${won ? (net > 0 ? 'is-win' : 'is-even') : 'is-loss'}`;
     box.innerHTML = won
       ? `<strong>AUSGEZAHLT</strong>
-         <span>Bei <b>${fmtMult(state.cashedAt)}</b> gesichert · Crash lag bei ${fmtMult(state.crashPoint)}</span>
+         <span>Bei <b>${fmtCrashMult(state.cashedAt)}</b> gesichert · Crash lag bei ${fmtCrashMult(state.crashPoint)}</span>
          <span class="crash-result-net">${signedMoney(net)}</span>`
       : `<strong>CRASH!</strong>
-         <span>Crash bei <b>${fmtMult(state.crashPoint)}</b> · nicht rechtzeitig ausgezahlt</span>
+         <span>Crash bei <b>${fmtCrashMult(state.crashPoint)}</b> · nicht rechtzeitig ausgezahlt</span>
          <span class="crash-result-net">${signedMoney(net)}</span>`;
   }
 
@@ -467,7 +467,7 @@ export function createCrash(api) {
     }
     host.innerHTML = list.map((m) => {
       const tone = m >= 10 ? 'is-high' : m >= 2 ? 'is-mid' : 'is-low';
-      return `<span class="crash-pill ${tone}">${fmtMult(m)}</span>`;
+      return `<span class="crash-pill ${tone}">${fmtCrashMult(m)}</span>`;
     }).join('');
   }
 
@@ -497,7 +497,7 @@ export function createCrash(api) {
       ['Runden', s.rounds],
       ['Ausgezahlt', s.cashed],
       ['Gecrasht', s.crashed],
-      ['Bester Cash-Out', s.bestMultiplier ? fmtMult(s.bestMultiplier) : '—'],
+      ['Bester Cash-Out', s.bestMultiplier ? fmtCrashMult(s.bestMultiplier) : '—'],
       ['Höchste Auszahlung', money(s.bestPayout || 0)]
     ];
     host.innerHTML = rows.map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
@@ -561,18 +561,18 @@ export function createCrash(api) {
     }
 
     const multEl = $('#crash-mult');
-    if (multEl && !live) multEl.textContent = fmtMult(state.multiplier);
+    if (multEl && !live) multEl.textContent = fmtCrashMult(state.multiplier);
 
     const sub = $('#crash-sub');
     if (sub) {
       sub.textContent = live
         ? (state.cashedAt !== null
-            ? `Ausgestiegen bei ${fmtMult(state.cashedAt)}`
+            ? `Ausgestiegen bei ${fmtCrashMult(state.cashedAt)}`
             : 'Läuft …')
         : state.phase === 'ended'
           ? (state.cashedAt !== null
-              ? `Ausgestiegen bei ${fmtMult(state.cashedAt)} · Crash lag bei ${fmtMult(state.crashPoint)}`
-              : `Crash bei ${fmtMult(state.crashPoint)}`)
+              ? `Ausgestiegen bei ${fmtCrashMult(state.cashedAt)} · Crash lag bei ${fmtCrashMult(state.crashPoint)}`
+              : `Crash bei ${fmtCrashMult(state.crashPoint)}`)
           : 'Einsatz wählen und starten';
     }
     paintLive();

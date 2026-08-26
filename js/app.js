@@ -19,6 +19,7 @@ import { createWheel } from './wheel.js';
 import { createMines } from './mines.js';
 import { createBlackjack, CARD_SPEEDS, cardSpeedById } from './blackjack.js';
 import { createCrash } from './crash.js';
+import { createPlinko } from './plinko.js';
 import { BONUSES, bonusById, bonusStatus, nextAvailableAt, formatDuration } from './bonus.js';
 import { validateGamertag, MAX_LENGTH as TAG_MAX } from './gamertag.js';
 import { sound } from './sound.js';
@@ -50,7 +51,8 @@ const state = {
   wheel: null,
   mines: null,
   blackjack: null,
-  crash: null
+  crash: null,
+  plinko: null
 };
 
 /* ==================================================================== */
@@ -554,6 +556,7 @@ async function claimBonus(kind) {
     state.mines?.render();
     state.blackjack?.render();
     state.crash?.render();
+    state.plinko?.render();
     renderBoardHint();
   } catch (err) {
     toast(err.message || 'Bonus konnte nicht abgeholt werden.', 'warn');
@@ -638,6 +641,7 @@ function applyTheme(id) {
   else document.documentElement.dataset.theme = themeId;
   state.wheel?.refreshTheme();
   state.crash?.render();          // der Graph liest seine Farben neu ein
+  state.plinko?.render();         // Brett, Stifte und Felder ebenso
 }
 
 /** Kauf: prüft Besitz und Guthaben, bucht ab und aktiviert das Design. */
@@ -766,6 +770,20 @@ function renderGames() {
         <span class="art-card art-card-2">K<i>&#9829;</i></span>
         <span class="art-card art-card-3">10<i>&#9827;</i></span>`;
     }
+    if (game.id === 'plinko') {
+      // drei Stiftreihen, eine Kugel und die Multiplikatorleiste
+      const pins = [[0, 3], [1, 4], [2, 5]].flatMap(([row, count]) =>
+        Array.from({ length: count }, (_, i) => {
+          const x = 60 + (i - (count - 1) / 2) * 15;
+          return `<circle class="art-plinko-pin" cx="${x}" cy="${12 + row * 13}" r="2.6"/>`;
+        }));
+      const slots = [1, 2, 3, 3, 2, 1].map((tone, i) =>
+        `<rect class="art-plinko-slot-${tone}" x="${16 + i * 15}" y="52" width="12.5" height="7" rx="2"/>`);
+      art.innerHTML = `<svg viewBox="0 0 120 62" aria-hidden="true" class="art-plinko">
+          ${pins.join('')}${slots.join('')}
+          <circle class="art-plinko-ball" cx="67" cy="26" r="4.6"/>
+        </svg>`;
+    }
     if (game.id === 'mines') {
       const marks = { 2: 'is-coin', 4: 'is-mine', 6: 'is-coin', 7: 'is-coin' };
       art.innerHTML = Array.from({ length: 9 },
@@ -822,6 +840,7 @@ function applySession(session) {
   renderThemes();
   state.blackjack?.render();
   state.crash?.render();
+  state.plinko?.render();
   $('#gamertag-msg').hidden = true;
   refreshBonusState();
 }
@@ -898,7 +917,7 @@ async function logout() {
  * wenn sie beim Öffnen etwas vorbereiten müssen.
  */
 async function navigate(target) {
-  const needsAccount = ['game', 'games', 'mines', 'blackjack', 'crash', 'shop', 'settings'];
+  const needsAccount = ['game', 'games', 'mines', 'blackjack', 'crash', 'plinko', 'shop', 'settings'];
   if (needsAccount.includes(target) && !state.profile) return showScreen('auth');
 
   // Eine laufende Mines-Runde hat bereits Geld auf dem Tisch: nicht versehentlich verlassen.
@@ -949,6 +968,16 @@ async function navigate(target) {
   if (target === 'crash') {
     showScreen('crash');
     state.crash.render();
+    return;
+  }
+
+  // Plinko hat keine offene Runde: fliegende Kugeln werden beim Verlassen
+  // sofort abgerechnet, es kann also nichts verloren gehen.
+  if (getScreen() === 'plinko' && target !== 'plinko') state.plinko?.flush();
+
+  if (target === 'plinko') {
+    showScreen('plinko');
+    state.plinko.render();
     return;
   }
 
@@ -1196,6 +1225,22 @@ async function boot() {
   });
   state.crash.init();
 
+  // Plinko bekommt dieselbe schmale Schnittstelle wie die anderen Minigames.
+  state.plinko = createPlinko({
+    available,
+    spend: (n) => { state.profile.balance -= n; },
+    credit,
+    persist,
+    paintBalance: () => paintBalance(available()),
+    recordRound,
+    gameStats,
+    getPref,
+    setPref,
+    toast,
+    sound
+  });
+  state.plinko.init();
+
   buildCardSpeedOptions();
   applySettings();
 
@@ -1323,6 +1368,8 @@ window.__grandVert = {
   blackjack: () => state.blackjack?.debug(),
   crash: () => state.crash?.debug(),
   crashGame: () => state.crash,
+  plinko: () => state.plinko?.debug(),
+  plinkoGame: () => state.plinko,
   /** Speichert den aktuellen Stand – von den automatisierten Tests genutzt. */
   save: () => persist()
 };

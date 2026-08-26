@@ -513,6 +513,9 @@ export const defaultSettings = {
   speed: 'normal',        // Tempo der Roulette-Animation
   cardSpeed: 'normal',    // Tempo der Blackjack-Kartenanimation
   bjStatsOpen: false,     // Blackjack-Bilanz aufgeklappt?
+  plinkoRisk: 'mittel',   // zuletzt gewählte Plinko-Schwierigkeit
+  plinkoStatsOpen: false, // Plinko-Bilanz aufgeklappt?
+  crashStatsOpen: false,  // Crash-Bilanz aufgeklappt?
   confirmBets: false
 };
 

@@ -51,6 +51,14 @@ export const GAMES = [
     screen: 'crash'
   },
   {
+    id: 'plinko',
+    title: 'Plinko',
+    tagline: 'Lass die Kugel fallen und schau, in welchem Feld sie landet.',
+    facts: ['16 Reihen', 'Vier Risikostufen', 'Bis 10.000×'],
+    available: true,
+    screen: 'plinko'
+  },
+  {
     id: 'soon',
     title: 'Weitere Minigames',
     tagline: 'In Arbeit – schau bald wieder vorbei.',
@@ -88,11 +96,18 @@ export const THEMES = [
     swatch: ['#3a0f1e', '#c22b38', '#dcb367']
   },
   {
+    id: 'platinum',
+    name: 'Platinum',
+    price: 75000,
+    blurb: 'Kühles Weiß und Graphit. Klare Kanten, keine Farbe zu viel.',
+    swatch: ['#f4f5f7', '#9b2430', '#3a4049']
+  },
+  {
     id: 'ivory',
     name: 'Ivory & Gold',
     price: 100000,
-    blurb: 'Heller Salon in Creme und Elfenbein mit echtem Gold.',
-    swatch: ['#e9dfcb', '#a81f2a', '#a37c35']
+    blurb: 'Heller Salon in Elfenbein – Ränder, Knöpfe und Akzente in warmem Gold.',
+    swatch: ['#f1e8d4', '#8f1a24', '#9a7327']
   }
 ];
 
