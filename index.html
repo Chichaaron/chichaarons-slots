@@ -451,6 +451,7 @@
 
       <div class="crash-graph">
         <canvas id="crash-canvas" aria-label="Verlauf des Multiplikators"></canvas>
+        <div class="crash-secured" id="crash-secured" hidden aria-live="polite"></div>
         <div class="crash-overlay" aria-live="polite">
           <output class="crash-mult" id="crash-mult">1,00×</output>
           <p class="crash-sub" id="crash-sub">Einsatz wählen und starten</p>
@@ -463,7 +464,7 @@
           <strong class="stat-value" data-crash-bet>—</strong>
         </div>
         <div class="crash-live-item">
-          <span class="stat-label">Mögliche Auszahlung</span>
+          <span class="stat-label" id="crash-payout-label">Mögliche Auszahlung</span>
           <strong class="stat-value" id="crash-payout">—</strong>
         </div>
       </div>
