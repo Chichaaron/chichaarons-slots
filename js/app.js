@@ -958,6 +958,7 @@ async function navigate(target) {
     refresh();
     return;
   }
+  if (target === 'settings') requestAnimationFrame(paintVolume);
   if (target === 'games') renderGames();
   if (target === 'shop') { renderThemes(); renderBonusCards(); refreshBonusState(); }
   if (target === 'menu') updateBonusDot();
@@ -1040,8 +1041,7 @@ function applySettings() {
   sound.setVolume(volumePercent() / 100);
   $('#set-sound').checked = state.settings.sound;
   $('#set-speed').value = state.settings.speed;
-  $('#set-volume').value = String(volumePercent());
-  $('#set-volume-value').textContent = `${volumePercent()} %`;
+  paintVolume();
   state.settings.cardSpeed = cardSpeedId();
   paintCardSpeed();
   state.blackjack?.refreshSpeed();
@@ -1052,6 +1052,34 @@ function volumePercent() {
   const v = Number(state.settings.volume);
   return Number.isFinite(v) ? Math.min(100, Math.max(0, Math.round(v))) : 70;
 }
+
+/**
+ * Zeichnet den Lautstärkeregler – Reglerposition, goldene Linie, Prozentzahl
+ * und die tatsächliche Lautstärke kommen alle aus DEMSELBEN Wert.
+ *
+ * Die goldene Linie wird in Pixeln gesetzt, nicht in Prozent: Der Griff
+ * wandert nur zwischen `halbe Griffbreite` und `Breite − halbe Griffbreite`.
+ * Mit einem Prozentwert liefe die Linie dem Griff sonst systematisch davon.
+ */
+function paintVolume() {
+  const slider = $('#set-volume');
+  const output = $('#set-volume-value');
+  const pct = volumePercent();
+
+  sound.setVolume(pct / 100);
+  if (output) output.textContent = `${pct} %`;
+  if (!slider) return;
+  if (slider.value !== String(pct)) slider.value = String(pct);
+
+  const width = slider.getBoundingClientRect().width;
+  const thumb = VOLUME_THUMB_PX;
+  slider.style.setProperty('--fill', width > thumb
+    ? `${(thumb / 2) + (pct / 100) * (width - thumb)}px`
+    : `${pct}%`);          // Bildschirm noch verborgen: Prozent genügt
+}
+
+/** Griffbreite des Reglers – muss zum Wert im Stylesheet passen. */
+const VOLUME_THUMB_PX = 18;
 
 /** Gewählte Kartengeschwindigkeit für Blackjack (immer eine gültige Stufe). */
 function cardSpeedId() {
@@ -1212,13 +1240,17 @@ async function boot() {
   });
   $('#set-volume').addEventListener('input', (e) => {
     state.settings.volume = Number(e.target.value);
-    $('#set-volume-value').textContent = `${volumePercent()} %`;
-    sound.setVolume(volumePercent() / 100);
+    paintVolume();
   });
   $('#set-volume').addEventListener('change', () => {
     saveSettings(state.settings);
     if (state.settings.sound) sound.card();
   });
+  // Breite ändert sich (Fenstergröße, Bildschirmwechsel) -> Linie nachziehen
+  if (typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(() => paintVolume()).observe($('#set-volume'));
+  }
+  window.addEventListener('resize', paintVolume);
   $('#set-speed').addEventListener('change', (e) => {
     state.settings.speed = e.target.value;
     saveSettings(state.settings);

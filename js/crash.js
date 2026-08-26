@@ -278,7 +278,8 @@ export function createCrash(api) {
     graph?.draw({
       elapsed: Math.min(elapsed, state.crashTime),
       multiplier: state.multiplier,
-      crashed: false
+      crashed: false,
+      cashed: state.cashedAt !== null
     });
     paintLive();
 
@@ -297,24 +298,28 @@ export function createCrash(api) {
     state.raf = null;
   }
 
-  /** Auszahlen. Gilt nur, solange die Runde wirklich noch läuft. */
+  /**
+   * Auszahlen. Sichert sofort den Gewinn – die Runde läuft danach aber
+   * WEITER, bis der vorher bestimmte Crash-Punkt erreicht ist. Der Spieler
+   * sieht dadurch, wie weit die Kurve noch gekommen wäre. Eine zweite
+   * Auszahlung ist ausgeschlossen (`cashedAt` ist dann gesetzt).
+   */
   async function cashOut() {
-    if (state.phase !== 'running') return;
+    if (state.phase !== 'running' || state.cashedAt !== null) return;
     const now = performance.now();
     if (now - state.startedAt >= state.crashTime) return;   // schon gecrasht
 
     const multiplier = currentMultiplier(now);
-    stopLoop();
-    state.phase = 'ended';
-    state.multiplier = multiplier;
     state.cashedAt = multiplier;
     state.payout = payoutFor(state.bet, multiplier);
 
+    // Das Geld ist jetzt endgültig gutgeschrieben. Der weitere Verlauf der
+    // Kurve ändert daran nichts mehr.
     api.credit(state.payout);
     api.paintBalance();
-    graph?.draw({ elapsed: now - state.startedAt, multiplier, crashed: false, cashed: true });
     api.sound.win();
-    finishRound();
+    showSecured();
+    render();
     await api.persist();
   }
 
@@ -322,14 +327,17 @@ export function createCrash(api) {
     stopLoop();
     state.phase = 'ended';
     state.multiplier = state.crashPoint;
-    state.payout = 0;
     graph?.draw({ elapsed: state.crashTime, multiplier: state.crashPoint, crashed: true });
     api.sound.crash();
     finishRound();
     api.persist();
   }
 
-  /** Statistik, Verlauf und Ergebnisanzeige – für beide Ausgänge gleich. */
+  /**
+   * Statistik, Verlauf und Ergebnisanzeige. Läuft immer erst beim Crash –
+   * auch dann, wenn schon vorher ausgezahlt wurde. Die Auszahlung selbst ist
+   * zu diesem Zeitpunkt längst gebucht und ändert sich hier nicht mehr.
+   */
   function finishRound() {
     const won = state.cashedAt !== null;
     const net = state.payout - state.bet;
@@ -383,24 +391,47 @@ export function createCrash(api) {
     const multEl = $('#crash-mult');
     if (multEl) multEl.textContent = fmtMult(state.multiplier);
 
-    // Vor der Runde gibt es noch nichts auszuzahlen, nach dem Crash nichts mehr.
+    // Vor der Runde gibt es noch nichts auszuzahlen; ist schon ausgezahlt,
+    // steht der Betrag fest und läuft NICHT mehr mit dem Multiplikator mit.
     const live = state.phase === 'running';
-    const payoutText = live
-      ? money(payoutFor(state.bet || 0, state.multiplier))
-      : state.phase === 'ended'
-        ? money(state.payout)
+    const secured = state.cashedAt !== null;
+    const payoutText = secured || state.phase === 'ended'
+      ? money(state.payout)
+      : live
+        ? money(payoutFor(state.bet || 0, state.multiplier))
         : '—';
+
+    const label = $('#crash-payout-label');
+    if (label) label.textContent = secured ? 'Ausgezahlt' : 'Mögliche Auszahlung';
 
     const payoutEl = $('#crash-payout');
     if (payoutEl) {
       payoutEl.textContent = payoutText;
-      payoutEl.classList.toggle('is-zero', state.phase === 'ended' && state.payout === 0);
+      payoutEl.classList.toggle('is-zero', !secured && state.phase === 'ended' && state.payout === 0);
+      payoutEl.classList.toggle('is-secured', secured);
     }
     const cash = $('#crash-cash');
-    if (cash) {
+    if (cash && !secured) {
       const small = cash.querySelector('small');
       if (small) small.textContent = live ? money(payoutFor(state.bet || 0, state.multiplier)) : '—';
     }
+
+    // Gesichert-Schild: zeigt dauerhaft, bei welchem Wert ausgestiegen wurde
+    const badge = $('#crash-secured');
+    if (badge) {
+      badge.hidden = !secured;
+      if (secured) {
+        badge.innerHTML = `<span class="crash-secured-label">Gesichert</span>
+          <b>${fmtMult(state.cashedAt)}</b>
+          <span class="crash-secured-net">${signedMoney(state.payout - state.bet)}</span>`;
+      }
+    }
+  }
+
+  /** Kurze Rückmeldung direkt beim Auszahlen – die Runde läuft dabei weiter. */
+  function showSecured() {
+    paintLive();
+    api.toast(`${money(state.payout)} gesichert bei ${fmtMult(state.cashedAt)}.`, 'good');
   }
 
   function showResult(won, net) {
@@ -420,6 +451,8 @@ export function createCrash(api) {
   function hideResult() {
     const box = $('#crash-result');
     if (box) box.hidden = true;
+    const badge = $('#crash-secured');
+    if (badge) badge.hidden = true;
   }
 
   /** Leiste der letzten Crash-Punkte – wie in echten Crash-Spielen. */
@@ -500,13 +533,16 @@ export function createCrash(api) {
       start.textContent = state.phase === 'ended' ? 'NOCHMAL SPIELEN' : 'SPIELEN';
       start.hidden = live;
     }
+    // Nach dem Auszahlen verschwindet der Knopf – ein zweites Mal geht nicht.
     const cash = $('#crash-cash');
-    if (cash) cash.hidden = !live;
+    if (cash) cash.hidden = !live || state.cashedAt !== null;
 
     const hint = $('#crash-hint');
     if (hint) {
       hint.textContent = live
-        ? 'Zahle aus, bevor die Kurve abstürzt.'
+        ? (state.cashedAt !== null
+            ? 'Gewinn ist gesichert. Die Runde läuft noch bis zum Crash.'
+            : 'Zahle aus, bevor die Kurve abstürzt.')
         : !state.bet ? 'Wähle einen Einsatz.'
         : state.bet > api.available() ? 'Einsatz höher als dein Guthaben.'
         : state.phase === 'ended' ? 'Der Einsatz liegt noch – einfach nochmal starten.'
@@ -519,8 +555,9 @@ export function createCrash(api) {
     const stage = $('#crash-stage');
     if (stage) {
       stage.classList.toggle('is-running', live);
-      stage.classList.toggle('is-crashed', state.phase === 'ended' && state.cashedAt === null);
-      stage.classList.toggle('is-cashed', state.phase === 'ended' && state.cashedAt !== null);
+      stage.classList.toggle('is-crashed', state.phase === 'ended');
+      stage.classList.toggle('is-cashed', state.cashedAt !== null);
+      stage.classList.toggle('is-secured-run', live && state.cashedAt !== null);
     }
 
     const multEl = $('#crash-mult');
@@ -529,10 +566,12 @@ export function createCrash(api) {
     const sub = $('#crash-sub');
     if (sub) {
       sub.textContent = live
-        ? 'Läuft …'
+        ? (state.cashedAt !== null
+            ? `Ausgestiegen bei ${fmtMult(state.cashedAt)}`
+            : 'Läuft …')
         : state.phase === 'ended'
           ? (state.cashedAt !== null
-              ? `Gesichert · Crash lag bei ${fmtMult(state.crashPoint)}`
+              ? `Ausgestiegen bei ${fmtMult(state.cashedAt)} · Crash lag bei ${fmtMult(state.crashPoint)}`
               : `Crash bei ${fmtMult(state.crashPoint)}`)
           : 'Einsatz wählen und starten';
     }
@@ -567,20 +606,23 @@ export function createCrash(api) {
       if (!isLive()) { newRound(); return; }
       stopLoop();
       state.phase = 'ended';
-      state.payout = 0;
-      state.cashedAt = null;
+      // Ein bereits gesicherter Gewinn bleibt dem Spieler – nur wer noch
+      // nicht ausgezahlt hat, verliert beim Verlassen seinen Einsatz.
+      const won = state.cashedAt !== null;
       api.recordRound({
         game: 'crash',
         staked: state.bet,
-        net: -state.bet,
+        net: state.payout - state.bet,
         crashAt: state.crashPoint,
-        cashedAt: null,
-        payout: 0,
+        cashedAt: state.cashedAt,
+        payout: state.payout,
         abandoned: true
       });
       const stats = api.gameStats('crash', STAT_DEFAULTS);
       stats.rounds += 1;
-      stats.crashed += 1;
+      if (won) stats.cashed += 1; else stats.crashed += 1;
+      stats.recent = [state.crashPoint, ...(Array.isArray(stats.recent) ? stats.recent : [])]
+        .slice(0, RECENT_MAX);
       newRound();
       await api.persist();
     },
@@ -595,6 +637,7 @@ export function createCrash(api) {
       cashedAt: state.cashedAt,
       payout: state.payout,
       canStart: canStart(),
+      secured: state.cashedAt !== null,
       elapsed: state.phase === 'running' ? Math.round(performance.now() - state.startedAt) : 0
     }),
 
