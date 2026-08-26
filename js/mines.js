@@ -9,7 +9,7 @@
  * zu. Dadurch bleibt das Roulette vollständig unberührt.
  */
 import { CHIPS, MAX_CHIP, MAX_BET, maxBetFor } from './bets.js';
-import { money } from './roulette.js';
+import { money, signedMoney } from './roulette.js';
 
 /* ==================================================================== */
 /* Regeln und Mathematik                                                 */
@@ -24,30 +24,58 @@ export const BOARDS = [
 ];
 
 /**
- * Rückzahlquote. 0,973 entspricht exakt dem Hausvorteil des europäischen
- * Roulettes (1 − 1/37), damit beide Spiele gleich fair sind.
+ * Auszahlungskurve.
+ *
+ * Der Multiplikator ist der faire Kehrwert der Überlebenswahrscheinlichkeit,
+ * multipliziert mit einer Quote, die mit jedem weiteren Feld steigt:
+ *
+ *   rtpAt(1) = 0,845   →   rtpAt(∞) → 0,97
+ *
+ * Daraus folgt direkt: Wer nach genau k Feldern auszahlt, bekommt langfristig
+ * `rtpAt(k)` seines Einsatzes zurück – bei einem Feld also nur 84,5 %. Ein
+ * "immer ein Feld, dann Cash-Out" ist damit rechnerisch ein sicherer Verlust,
+ * unabhängig von Feldgröße und Minenzahl. Wer weiter geht, spielt gegen einen
+ * kleineren Hausvorteil, trägt dafür aber das echte Risiko.
  */
-export const RTP = 0.973;
+export const RTP_FIRST = 0.845;   // Quote nach dem ersten Feld
+export const RTP_DEEP = 0.97;     // Quote bei langen Serien
+export const RTP_DECAY = 0.75;    // wie schnell sich die Quote RTP_DEEP nähert
+
+/** Rückzahlquote nach `picks` sicheren Feldern. */
+export function rtpAt(picks) {
+  if (picks <= 0) return 1;
+  return RTP_DEEP - (RTP_DEEP - RTP_FIRST) * Math.pow(RTP_DECAY, picks - 1);
+}
 
 /** Höchstzahl Minen: es muss immer mindestens ein sicheres Feld übrig bleiben. */
 export const maxMines = (total) => total - 1;
 
 /**
- * Multiplikator nach `picks` sicher aufgedeckten Feldern.
- *
- * Die Chance, `picks` Felder hintereinander zu überleben, ist
- *   C(sicher, picks) / C(gesamt, picks).
- * Der faire Multiplikator ist der Kehrwert davon; mit RTP multipliziert
- * ergibt sich der ausgezahlte Multiplikator. Dadurch passen Risiko und
- * Belohnung bei jeder Feldgröße und jeder Minenzahl automatisch zusammen.
+ * Fairer Multiplikator: der Kehrwert der Wahrscheinlichkeit, `picks` Felder
+ * hintereinander zu überleben. Enthält noch keinen Hausvorteil.
+ */
+export function fairMultiplier(total, mines, picks) {
+  const safe = total - mines;
+  if (picks <= 0 || picks > safe || safe <= 0) return 1;
+  let m = 1;
+  for (let i = 0; i < picks; i++) m *= (total - i) / (safe - i);
+  return m;
+}
+
+/**
+ * Ausgezahlter Multiplikator nach `picks` sicheren Feldern.
+ * Berücksichtigt Feldgröße, Minenzahl, bereits aufgedeckte Felder und damit
+ * automatisch auch das Risiko des nächsten Feldes.
  */
 export function multiplierFor(total, mines, picks) {
   if (picks <= 0) return 1;
-  const safe = total - mines;
-  if (picks > safe || safe <= 0) return 1;
-  let m = 1;
-  for (let i = 0; i < picks; i++) m *= (total - i) / (safe - i);
-  return RTP * m;
+  return rtpAt(picks) * fairMultiplier(total, mines, picks);
+}
+
+/** Wahrscheinlichkeit, dass das NÄCHSTE Feld eine Mine ist (0…1). */
+export function nextMineRisk(total, mines, picks) {
+  const left = total - picks;
+  return left > 0 ? Math.min(1, mines / left) : 0;
 }
 
 /** Auszahlung bei Cash-Out – immer auf volle Euro abgerundet. */
@@ -137,6 +165,8 @@ export function createMines(api) {
     revealed: new Set(),    // sicher aufgedeckte Felder
     finished: false
   };
+
+  const fmtMult = (m) => `${m.toFixed(2).replace('.', ',')}×`;
 
   const total = () => (state.boardSize ?? 0) ** 2;
   const picks = () => state.revealed.size;
@@ -354,7 +384,11 @@ export function createMines(api) {
       net
     });
 
-    won ? api.sound.win() : api.sound.lose();
+    // Ein Cash-Out unter 1,00× ist zwar ein erfolgreicher Abschluss,
+    // aber kein Gewinn – der Ton richtet sich nach dem Netto.
+    if (!won) api.sound.lose();
+    else if (net > 0) api.sound.win();
+    else api.sound.remove();
     showResult(won, payout, net, autoPayout);
     render();
     await api.persist();
@@ -367,15 +401,16 @@ export function createMines(api) {
 
   function showResult(won, payout, net, autoPayout) {
     const box = $('#mines-result');
-    box.className = `mines-result ${won ? 'is-win' : 'is-loss'}`;
+    const tone = !won ? 'is-loss' : net > 0 ? 'is-win' : 'is-even';
+    box.className = `mines-result ${tone}`;
     box.hidden = false;
     box.innerHTML = won
-      ? `<strong>${autoPayout ? 'Alle Felder sicher!' : 'Ausgezahlt!'}</strong>
-         <span>${picks()} Felder · ${currentMultiplier().toFixed(2).replace('.', ',')}× · <b>${money(payout)}</b></span>
-         <span class="mines-result-net">${net >= 0 ? '+' : '−'}${money(Math.abs(net))}</span>`
+      ? `<strong>${autoPayout ? 'Alle Felder sicher!' : net > 0 ? 'Ausgezahlt!' : 'Gesichert'}</strong>
+         <span>${picks()} ${picks() === 1 ? 'Feld' : 'Felder'} · ${fmtMult(currentMultiplier())} · <b>${money(payout)}</b></span>
+         <span class="mines-result-net">${signedMoney(net)}</span>`
       : `<strong>MINE!</strong>
          <span>Nach ${picks()} sicheren ${picks() === 1 ? 'Feld' : 'Feldern'}</span>
-         <span class="mines-result-net">−${money(state.bet)}</span>`;
+         <span class="mines-result-net">${signedMoney(-state.bet)}</span>`;
   }
 
   /** Bereitet die nächste Runde vor. Einstellungen bleiben erhalten. */
@@ -448,7 +483,7 @@ export function createMines(api) {
     // Laufende Runde
     const mult = currentMultiplier();
     const multEl = $('#mines-multiplier');
-    const nextText = `${mult.toFixed(2).replace('.', ',')}×`;
+    const nextText = fmtMult(mult);
     if (multEl.textContent !== nextText) {
       multEl.textContent = nextText;
       if (animateMultiplier) {
@@ -457,7 +492,25 @@ export function createMines(api) {
         multEl.classList.add('pulse');
       }
     }
-    $('#mines-payout').textContent = live && picks() > 0 ? money(currentPayout()) : '—';
+    const payoutEl = $('#mines-payout');
+    payoutEl.textContent = live && picks() > 0 ? money(currentPayout()) : '—';
+    // unter dem Einsatz = noch kein Gewinn: das soll man sehen
+    payoutEl.classList.toggle('is-below', live && picks() > 0 && currentPayout() < state.bet);
+
+    // Vorschau: was das nächste Feld bringt und was es kostet
+    const preview = $('#mines-next');
+    if (live && safeLeft() > 0) {
+      const nextMult = multiplierFor(total(), state.mines, picks() + 1);
+      const risk = nextMineRisk(total(), state.mines, picks());
+      preview.innerHTML = `Nächstes Feld: <b>${fmtMult(nextMult)}</b>
+        · <span class="mines-risk">${(risk * 100).toFixed(risk < 0.1 ? 1 : 0)} % Minenrisiko</span>`;
+      preview.hidden = false;
+    } else if (live) {
+      preview.textContent = 'Letztes sicheres Feld – danach wird automatisch ausgezahlt.';
+      preview.hidden = false;
+    } else {
+      preview.hidden = true;
+    }
     $('#mines-safe').textContent = state.boardSize
       ? `${picks()} / ${total() - (state.mines ?? 0)}`
       : '—';

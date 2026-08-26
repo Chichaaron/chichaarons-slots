@@ -17,6 +17,8 @@ import { GAMES, THEMES, DEFAULT_THEME, themeById, safeThemeId } from './catalog.
 import { buildBoard, renderBoardChips, highlightWinner, clearHighlight, renderLastNumbers } from './table.js';
 import { createWheel } from './wheel.js';
 import { createMines } from './mines.js';
+import { BONUSES, bonusById, bonusStatus, nextAvailableAt, formatDuration } from './bonus.js';
+import { validateGamertag, MAX_LENGTH as TAG_MAX } from './gamertag.js';
 import { sound } from './sound.js';
 import {
   $, $$, showScreen, getScreen, toast, paintBalance, paintUsername, renderBetList,
@@ -25,18 +27,12 @@ import {
 
 const SPIN_DURATION = { fast: 4200, normal: 6400, cinematic: 8600 };
 
-/* ----- Gratis-Bonus im Shop: hier die beiden Zahlen anpassen ----- */
-const BONUS = {
-  amount: 10000,      // wie viel es pro Abholung gibt
-  intervalHours: 24   // wie lange man danach warten muss
-};
-
 /**
  * Diagnose-Objekt (window.__grandVert). Wird von den automatisierten Tests
- * gelesen und erleichtert die Fehlersuche. Enthält keine Geheimnisse:
- * der Spielstand liegt ohnehin im Browser bzw. im eigenen Supabase-Konto.
+ * gelesen und erleichtert die Fehlersuche.
  */
 const debug = { landing: null, lastRound: null };
+
 const delay = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const state = {
@@ -49,7 +45,8 @@ const state = {
   settings: loadSettings(),
   authMode: 'login',
   prevScreen: 'menu',
-  wheel: null
+  wheel: null,
+  mines: null
 };
 
 /* ==================================================================== */
@@ -421,70 +418,182 @@ function applyCustomChip() {
 }
 
 /* ==================================================================== */
-/* Gratis-Bonus im Shop                                                  */
+/* Boni (Tages-, Zeit- und Wochenbonus)                                  */
 /* ==================================================================== */
 
-const BONUS_INTERVAL_MS = BONUS.intervalHours * 60 * 60 * 1000;
+/**
+ * Zeitpunkte der letzten Abholungen – sie kommen vom Server.
+ * `serverNow`/`fetchedAt` bilden den Versatz zur Gerätezeit ab, damit der
+ * Countdown weiterlaufen kann, ohne den Server jede Sekunde zu fragen.
+ * Entscheiden darf über eine Abholung trotzdem nur der Server.
+ */
+const bonusData = { serverNow: 0, fetchedAt: 0, daily: 0, timed: 0, weekly: 0, loaded: false };
+let bonusBusy = false;
 
-/** Millisekunden bis zur nächsten Abholung (0 = jetzt abholbar). */
-function bonusRemainingMs() {
-  if (!state.profile) return BONUS_INTERVAL_MS;
-  const last = Number(state.profile.stats.lastBonusAt) || 0;
-  const now = Date.now();
-  // Uhr zurückgestellt? Dann nicht dauerhaft sperren, sondern freigeben.
-  if (last > now) return 0;
-  return Math.max(0, last + BONUS_INTERVAL_MS - now);
+/** Aktuelle Serverzeit, geschätzt aus dem zuletzt gemeldeten Wert. */
+const serverNow = () => bonusData.serverNow + (Date.now() - bonusData.fetchedAt);
+
+function applyBonusState(data) {
+  if (!data) return;
+  bonusData.serverNow = data.serverNow || Date.now();
+  bonusData.fetchedAt = Date.now();
+  bonusData.daily = data.daily || 0;
+  bonusData.timed = data.timed || 0;
+  bonusData.weekly = data.weekly || 0;
+  bonusData.loaded = true;
 }
 
-/** 3754000 -> "1:02:34", 754000 -> "12:34" */
-function formatCountdown(ms) {
-  const total = Math.ceil(ms / 1000);
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const sec = total % 60;
-  const pad = (n) => String(n).padStart(2, '0');
-  return h > 0 ? `${h}:${pad(m)}:${pad(sec)}` : `${m}:${pad(sec)}`;
+/** Holt den Bonusstatus (inklusive Serverzeit) neu. */
+async function refreshBonusState() {
+  if (!state.profile) return;
+  try {
+    applyBonusState(await store.bonusState());
+  } catch (err) {
+    console.warn('Bonusstatus konnte nicht geladen werden.', err);
+  }
+  renderBonusCards();
+  updateBonusDot();
 }
 
-/** Zeichnet die Bonus-Karte im Shop und den Hinweis im Hauptmenü. */
-function renderBonus() {
-  const badge = $('#menu-shop-badge');
-  const card = document.querySelector('.bonus-card');
-  if (!card || !badge) return;
+const bonusList = () => bonusStatus(bonusData, serverNow());
 
-  const remaining = state.profile ? bonusRemainingMs() : BONUS_INTERVAL_MS;
-  const ready = state.profile && remaining === 0;
-
-  badge.hidden = !ready;
-
-  $('#bonus-amount').textContent = `+${money(BONUS.amount)}`;
-  card.classList.toggle('is-ready', Boolean(ready));
-
-  const button = $('#btn-bonus');
-  button.disabled = !ready;
-  button.textContent = ready ? 'Jetzt abholen' : `Bereit in ${formatCountdown(remaining)}`;
-
-  $('#bonus-sub').textContent = ready
-    ? 'Dein Bonus wartet. Danach wieder in 24 Stunden.'
-    : 'Einmal alle 24 Stunden kannst du dir Guthaben abholen.';
-
-  // Fortschrittsbalken füllt sich, bis der Bonus wieder bereit ist
-  const progress = ready ? 1 : 1 - remaining / BONUS_INTERVAL_MS;
-  $('#bonus-bar-fill').style.width = `${Math.round(progress * 100)}%`;
+/** Goldener Punkt am Shop-Eintrag, sobald mindestens ein Bonus bereitsteht. */
+function updateBonusDot() {
+  const dot = $('#menu-shop-badge');
+  if (!dot) return;
+  const ready = Boolean(state.profile) && bonusData.loaded && bonusList().some((b) => b.available);
+  dot.hidden = !ready;
 }
 
-async function claimBonus() {
-  if (!state.profile || bonusRemainingMs() > 0) return;
-  credit(BONUS.amount);
-  state.profile.stats.lastBonusAt = Date.now();
-  state.profile.stats.bonusesClaimed = (state.profile.stats.bonusesClaimed || 0) + 1;
-  await persist();
-  paintBalance(available());
-  sound.win();
-  toast(`${money(BONUS.amount)} gutgeschrieben!`, 'good');
-  renderBonus();
-  renderThemes();
-  if (getScreen() === 'game') refresh();
+/** Baut bzw. aktualisiert die drei Bonuskarten im Shop. */
+function renderBonusCards() {
+  const host = $('#bonus-grid');
+  if (!host || !state.profile) return;
+
+  // Karten einmal anlegen, danach nur noch die Werte auffrischen
+  if (host.children.length !== BONUSES.length) {
+    host.innerHTML = '';
+    for (const bonus of BONUSES) {
+      const card = document.createElement('article');
+      card.className = 'bonus-card';
+      card.dataset.bonus = bonus.id;
+      card.innerHTML = `
+        <div class="bonus-head">
+          <span class="bonus-coin" aria-hidden="true">€</span>
+          <div>
+            <h3 class="bonus-title">${bonus.label}</h3>
+            <strong class="bonus-amount">${money(bonus.amount)}</strong>
+          </div>
+        </div>
+        <p class="bonus-blurb">${bonus.blurb}</p>
+        <p class="bonus-timer"></p>
+        <button class="btn btn-gold" type="button">ABHOLEN</button>`;
+      card.querySelector('button').onclick = () => claimBonus(bonus.id);
+      host.appendChild(card);
+    }
+  }
+
+  for (const status of bonusList()) {
+    const card = host.querySelector(`[data-bonus="${status.id}"]`);
+    if (!card) continue;
+    const button = card.querySelector('button');
+    const timer = card.querySelector('.bonus-timer');
+
+    card.classList.toggle('is-ready', status.available);
+    card.classList.toggle('is-waiting', !status.available);
+    button.disabled = !status.available || bonusBusy;
+    button.textContent = status.available ? 'ABHOLEN' : 'NICHT VERFÜGBAR';
+    timer.innerHTML = status.available
+      ? 'Jetzt abholbar'
+      : `Nächster Bonus in <b>${formatDuration(status.remainingMs)}</b>`;
+  }
+}
+
+/**
+ * Bonus abholen. Prüfung, Gutschrift und Markierung passieren serverseitig in
+ * einem Schritt – mehrfaches Klicken kann denselben Bonus nicht zweimal auslösen.
+ */
+async function claimBonus(kind) {
+  if (bonusBusy || !state.profile) return;
+  const bonus = bonusById(kind);
+  if (!bonus) return;
+
+  bonusBusy = true;
+  renderBonusCards();
+  try {
+    // Noch nicht ausgewertete Roulette-Einsätze sind im gespeicherten Stand
+    // enthalten – nach der Gutschrift müssen sie wieder abgezogen werden.
+    const pending = state.phase === 'betting' ? state.ledger.total() : 0;
+    const result = await store.claimBonus(kind, bonus.amount, (last) => nextAvailableAt(kind, last));
+    applyBonusState(result);
+    state.profile.balance = Math.max(0, result.balance - pending);
+    paintBalance(available());
+    ensureAffordableChip();
+    sound.win();
+    toast(`${money(result.amount ?? bonus.amount)} gutgeschrieben!`, 'good');
+    renderThemes();
+    if (getScreen() === 'game') refresh();
+    state.mines?.render();
+  } catch (err) {
+    toast(err.message || 'Bonus konnte nicht abgeholt werden.', 'warn');
+    await refreshBonusState();
+  } finally {
+    bonusBusy = false;
+    renderBonusCards();
+    updateBonusDot();
+  }
+}
+
+/* ==================================================================== */
+/* Gamertag                                                              */
+/* ==================================================================== */
+
+/** Zeigt den Gamertag überall an – im Menü steht nie die E-Mail-Adresse. */
+function paintIdentity() {
+  const tag = state.profile?.gamertag || null;
+  paintUsername(tag || 'Gast');
+  const cta = $('#menu-gamertag-cta');
+  if (cta) cta.hidden = Boolean(tag);
+  const settingsTag = $('#settings-gamertag');
+  if (settingsTag) settingsTag.textContent = tag || 'noch keiner';
+  const input = $('#gamertag-input');
+  if (input && document.activeElement !== input) input.value = tag || '';
+}
+
+function showGamertagMessage(text, ok) {
+  const el = $('#gamertag-msg');
+  el.textContent = text;
+  el.className = `gamertag-msg ${ok ? 'is-ok' : 'is-error'}`;
+  el.hidden = false;
+}
+
+async function saveGamertag(ev) {
+  ev.preventDefault();
+  if (!state.profile) return;
+  const button = $('#gamertag-save');
+  const check = validateGamertag($('#gamertag-input').value);
+  if (!check.ok) {
+    showGamertagMessage(check.message, false);
+    return;
+  }
+  if (check.value === state.profile.gamertag) {
+    showGamertagMessage('Das ist bereits dein Gamertag.', true);
+    return;
+  }
+
+  button.disabled = true;
+  try {
+    await store.setGamertag(check.value);
+    state.profile.gamertag = check.value;
+    paintIdentity();
+    showGamertagMessage('Gamertag gespeichert.', true);
+    sound.chip();
+    toast(`Du heißt jetzt ${check.value}.`, 'good');
+  } catch (err) {
+    showGamertagMessage(err.message || 'Speichern fehlgeschlagen.', false);
+  } finally {
+    button.disabled = false;
+  }
 }
 
 /* ==================================================================== */
@@ -668,14 +777,17 @@ function openGame(gameId) {
 
 function applySession(session) {
   state.profile = session.profile;
-  paintUsername(session.user.name);
+  // Im Menü erscheint der Gamertag – die E-Mail-Adresse steht nur noch in den
+  // Einstellungen, wo der Spieler sein eigenes Konto verwaltet.
+  paintIdentity();
   $('#settings-account-info').textContent =
     `${session.user.name} · ${store.mode === 'supabase' ? 'Server-Konto (Supabase)' : 'Lokales Konto in diesem Browser'}`;
   applyTheme(activeThemeId());
   paintBalance(available());
   renderStats(state.profile.stats);
-  renderBonus();
   renderThemes();
+  $('#gamertag-msg').hidden = true;
+  refreshBonusState();
 }
 
 async function handleAuthSubmit(ev) {
@@ -704,7 +816,7 @@ async function handleAuthSubmit(ev) {
     $('#auth-password').value = '';
     $('#auth-password2').value = '';
     showScreen('menu');
-    toast(`Willkommen, ${session.user.name}!`, 'good');
+    toast(state.profile.gamertag ? `Willkommen zurück, ${state.profile.gamertag}!` : 'Willkommen!', 'good');
   } catch (err) {
     showAuthError(err.message || 'Anmeldung fehlgeschlagen.');
   } finally {
@@ -738,6 +850,8 @@ async function logout() {
   await store.logout();
   state.profile = null;
   state.lastSnapshot = [];
+  bonusData.loaded = false;
+  updateBonusDot();
   applyTheme(DEFAULT_THEME);
   showScreen('auth');
   toast('Abgemeldet. Dein Spielstand bleibt gespeichert.');
@@ -775,8 +889,8 @@ async function navigate(target) {
     return;
   }
   if (target === 'games') renderGames();
-  if (target === 'shop') { renderThemes(); renderBonus(); }
-  if (target === 'menu') renderBonus();
+  if (target === 'shop') { renderThemes(); renderBonusCards(); refreshBonusState(); }
+  if (target === 'menu') updateBonusDot();
   if (target === 'privacy') state.prevScreen = getScreen() || 'menu';
   showScreen(target);
 }
@@ -790,6 +904,7 @@ function exportData() {
   const payload = {
     exportiertAm: new Date().toISOString(),
     konto: store.userName,
+    gamertag: state.profile.gamertag,
     modus: store.mode,
     guthaben: state.profile.balance,
     statistik: state.profile.stats,
@@ -899,11 +1014,21 @@ async function boot() {
   $('#btn-clear').addEventListener('click', clearBets);
   $('#btn-repeat').addEventListener('click', repeatBets);
   $('#btn-custom').addEventListener('click', applyCustomChip);
-  $('#btn-bonus').addEventListener('click', claimBonus);
+  $('#gamertag-form').addEventListener('submit', saveGamertag);
+  $('#gamertag-input').setAttribute('maxlength', String(TAG_MAX));
+  $('#menu-gamertag-cta').addEventListener('click', () => navigate('settings'));
 
-  // Countdown und Menü-Hinweis einmal pro Sekunde auffrischen
+  // Countdown, goldener Punkt und Freischaltung laufen sekündlich weiter –
+  // auch wenn der Spieler gerade Roulette oder Mines spielt.
+  let wasReady = false;
   setInterval(() => {
-    if (state.profile) renderBonus();
+    if (!state.profile || !bonusData.loaded) return;
+    const ready = bonusList().some((b) => b.available);
+    // Sobald ein Bonus frei wird, einmal beim Server rückfragen
+    if (ready && !wasReady) refreshBonusState();
+    wasReady = ready;
+    updateBonusDot();
+    if (getScreen() === 'shop') renderBonusCards();
   }, 1000);
   $('#custom-amount').addEventListener('keydown', (e) => { if (e.key === 'Enter') applyCustomChip(); });
 

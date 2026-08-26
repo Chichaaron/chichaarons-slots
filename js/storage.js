@@ -18,6 +18,7 @@
  *   store.saveProfile(profile), store.deleteAccount(), store.exportData()
  */
 import { SUPABASE_CONFIG, APP_CONFIG } from './config.js';
+import { gamertagKey } from './gamertag.js';
 
 const LS_USERS = 'gv_roulette_users_v1';
 const LS_SESSION = 'gv_roulette_session_v1';
@@ -26,6 +27,7 @@ const LS_SETTINGS = 'gv_roulette_settings_v1';
 /** Frisches Profil für ein neues Konto. */
 export function freshProfile() {
   return {
+    gamertag: null,
     balance: APP_CONFIG.startBalance,
     stats: {
       rounds: 0,
@@ -46,6 +48,7 @@ function normalizeProfile(raw) {
   const base = freshProfile();
   if (!raw || typeof raw !== 'object') return base;
   return {
+    gamertag: typeof raw.gamertag === 'string' && raw.gamertag.trim() ? raw.gamertag : null,
     balance: Number.isFinite(Number(raw.balance)) ? Math.max(0, Number(raw.balance)) : base.balance,
     stats: { ...base.stats, ...(raw.stats || {}) },
     history: Array.isArray(raw.history) ? raw.history.slice(0, APP_CONFIG.maxHistory) : [],
@@ -187,6 +190,54 @@ const localBackend = {
     delete users[userId];
     writeUsers(users);
     localStorage.removeItem(LS_SESSION);
+  },
+
+  /** Gamertag setzen. Eindeutigkeit wird über alle lokalen Konten geprüft. */
+  async setGamertag(userId, name) {
+    const users = readUsers();
+    const key = gamertagKey(name);
+    for (const [id, rec] of Object.entries(users)) {
+      if (id !== userId && rec.profile?.gamertag && gamertagKey(rec.profile.gamertag) === key) {
+        throw new Error('Dieser Gamertag ist bereits vergeben.');
+      }
+    }
+    if (!users[userId]) throw new Error('Konto nicht gefunden.');
+    users[userId].profile = { ...users[userId].profile, gamertag: name };
+    writeUsers(users);
+    return name;
+  },
+
+  /** Zeitpunkte der letzten Bonusabholungen (lokal: Gerätezeit). */
+  async bonusState(userId) {
+    const rec = readUsers()[userId];
+    const b = rec?.bonuses || {};
+    return {
+      serverNow: Date.now(),
+      daily: b.daily || 0,
+      timed: b.timed || 0,
+      weekly: b.weekly || 0,
+      balance: rec?.profile?.balance ?? 0
+    };
+  },
+
+  /**
+   * Bonus abholen. Läuft auf dem GESPEICHERTEN Stand, damit offene Einsätze
+   * am Roulettetisch nicht durcheinandergeraten – genau wie in Supabase.
+   */
+  async claimBonus(userId, kind, amount, readyAt) {
+    const users = readUsers();
+    const rec = users[userId];
+    if (!rec) throw new Error('Konto nicht gefunden.');
+    rec.bonuses = rec.bonuses || {};
+    const now = Date.now();
+    if (now < readyAt(rec.bonuses[kind] || 0)) throw new Error('Dieser Bonus ist noch nicht verfügbar.');
+    rec.bonuses[kind] = now;
+    rec.profile.balance = Math.min(999999999999, Number(rec.profile.balance || 0) + amount);
+    writeUsers(users);
+    return {
+      balance: rec.profile.balance, serverNow: now, amount,
+      daily: rec.bonuses.daily || 0, timed: rec.bonuses.timed || 0, weekly: rec.bonuses.weekly || 0
+    };
   }
 };
 
@@ -219,7 +270,7 @@ const supabaseBackend = {
   async _fetchProfile(userId) {
     const { data, error } = await this.client
       .from('profiles')
-      .select('balance, stats, history')
+      .select('balance, stats, history, gamertag')
       .eq('id', userId)
       .maybeSingle();
     if (error) throw new Error(error.message);
@@ -278,6 +329,55 @@ const supabaseBackend = {
       })
       .eq('id', userId);
     if (error) throw new Error(error.message);
+  },
+
+  /**
+   * Gamertag setzen. Die Eindeutigkeit sichert ein UNIQUE-Index in der
+   * Datenbank – dadurch können zwei Spieler denselben Namen auch bei
+   * gleichzeitigem Speichern nicht beide bekommen.
+   */
+  async setGamertag(userId, name) {
+    const { error } = await this.client
+      .from('profiles')
+      .update({ gamertag: name, updated_at: new Date().toISOString() })
+      .eq('id', userId);
+    if (error) {
+      if (error.code === '23505' || /duplicate|unique/i.test(error.message)) {
+        throw new Error('Dieser Gamertag ist bereits vergeben.');
+      }
+      if (/column .*gamertag/i.test(error.message)) {
+        throw new Error('Die Datenbank kennt das Feld "gamertag" noch nicht – bitte das SQL-Update ausführen.');
+      }
+      throw new Error(error.message);
+    }
+    return name;
+  },
+
+  /** Bonusstatus samt SERVERZEIT – die Uhr des Geräts spielt keine Rolle. */
+  async bonusState() {
+    const { data, error } = await this.client.rpc('bonus_state');
+    if (error) throw new Error(error.message);
+    return {
+      serverNow: Date.parse(data.serverNow),
+      daily: data.daily ? Date.parse(data.daily) : 0,
+      timed: data.timed ? Date.parse(data.timed) : 0,
+      weekly: data.weekly ? Date.parse(data.weekly) : 0,
+      balance: Number(data.balance)
+    };
+  },
+
+  /** Abholen läuft komplett auf dem Server: prüfen, buchen, markieren in einem Schritt. */
+  async claimBonus(_userId, kind) {
+    const { data, error } = await this.client.rpc('claim_bonus', { kind });
+    if (error) throw new Error(error.message);
+    return {
+      balance: Number(data.balance),
+      serverNow: Date.parse(data.serverNow),
+      amount: Number(data.amount),
+      daily: data.daily ? Date.parse(data.daily) : 0,
+      timed: data.timed ? Date.parse(data.timed) : 0,
+      weekly: data.weekly ? Date.parse(data.weekly) : 0
+    };
   },
 
   async deleteAccount() {
@@ -369,6 +469,26 @@ export const store = {
     await this.backend.deleteAccount(this.userId);
     this.userId = null;
     this.userName = null;
+  },
+
+  async setGamertag(name) {
+    if (!this.userId) throw new Error('Nicht angemeldet.');
+    return this.backend.setGamertag(this.userId, name);
+  },
+
+  async bonusState() {
+    if (!this.userId) return null;
+    return this.backend.bonusState(this.userId);
+  },
+
+  /**
+   * @param {string} kind      'daily' | 'timed' | 'weekly'
+   * @param {number} amount    Betrag (nur im lokalen Modus nötig)
+   * @param {(last:number)=>number} readyAt  Zeitpunkt der nächsten Abholung (nur lokal)
+   */
+  async claimBonus(kind, amount, readyAt) {
+    if (!this.userId) throw new Error('Nicht angemeldet.');
+    return this.backend.claimBonus(this.userId, kind, amount, readyAt);
   }
 };
 
