@@ -17,6 +17,7 @@ import { GAMES, THEMES, DEFAULT_THEME, themeById, safeThemeId } from './catalog.
 import { buildBoard, renderBoardChips, highlightWinner, clearHighlight, renderLastNumbers } from './table.js';
 import { createWheel } from './wheel.js';
 import { createMines } from './mines.js';
+import { createBlackjack } from './blackjack.js';
 import { BONUSES, bonusById, bonusStatus, nextAvailableAt, formatDuration } from './bonus.js';
 import { validateGamertag, MAX_LENGTH as TAG_MAX } from './gamertag.js';
 import { sound } from './sound.js';
@@ -46,7 +47,8 @@ const state = {
   authMode: 'login',
   prevScreen: 'menu',
   wheel: null,
-  mines: null
+  mines: null,
+  blackjack: null
 };
 
 /* ==================================================================== */
@@ -101,7 +103,9 @@ function refresh(results = null) {
   renderStats(state.profile.stats);
   renderLastNumbers(
     $('#last-numbers'),
-    (state.profile.history || []).filter((h) => h.game !== 'mines').map((h) => h.winning)
+    (state.profile.history || [])
+      .filter((h) => h.winning !== undefined && h.winning !== null)
+      .map((h) => h.winning)
   );
 
   // Jetons deaktivieren, für die das Guthaben nicht reicht
@@ -324,6 +328,18 @@ function recordRound(entry) {
   renderStats(s);
 }
 
+/**
+ * Liefert (und legt bei Bedarf an) den Statistikeimer eines Minigames.
+ * Er liegt innerhalb von `stats` und wird dadurch ohne weitere Datenbank-
+ * änderung mitgespeichert.
+ */
+function gameStats(key, defaults) {
+  if (!state.profile) return { ...defaults };
+  const s = state.profile.stats;
+  s[key] = { ...defaults, ...(typeof s[key] === 'object' && s[key] ? s[key] : {}) };
+  return s[key];
+}
+
 function updateStats(round) {
   recordRound({
     game: 'roulette',
@@ -534,6 +550,7 @@ async function claimBonus(kind) {
     renderThemes();
     if (getScreen() === 'game') refresh();
     state.mines?.render();
+    state.blackjack?.render();
   } catch (err) {
     toast(err.message || 'Bonus konnte nicht abgeholt werden.', 'warn');
     await refreshBonusState();
@@ -732,6 +749,11 @@ function renderGames() {
     const art = document.createElement('div');
     art.className = `game-art game-art-${game.available ? game.id : 'soon'}`;
     art.setAttribute('aria-hidden', 'true');
+    if (game.id === 'blackjack') {
+      art.innerHTML = `<span class="art-card art-card-1">A<i>&#9824;</i></span>
+        <span class="art-card art-card-2">K<i>&#9829;</i></span>
+        <span class="art-card art-card-3">10<i>&#9827;</i></span>`;
+    }
     if (game.id === 'mines') {
       const marks = { 2: 'is-coin', 4: 'is-mine', 6: 'is-coin', 7: 'is-coin' };
       art.innerHTML = Array.from({ length: 9 },
@@ -786,6 +808,7 @@ function applySession(session) {
   paintBalance(available());
   renderStats(state.profile.stats);
   renderThemes();
+  state.blackjack?.render();
   $('#gamertag-msg').hidden = true;
   refreshBonusState();
 }
@@ -862,7 +885,7 @@ async function logout() {
  * wenn sie beim Öffnen etwas vorbereiten müssen.
  */
 async function navigate(target) {
-  const needsAccount = ['game', 'games', 'mines', 'shop', 'settings'];
+  const needsAccount = ['game', 'games', 'mines', 'blackjack', 'shop', 'settings'];
   if (needsAccount.includes(target) && !state.profile) return showScreen('auth');
 
   // Eine laufende Mines-Runde hat bereits Geld auf dem Tisch: nicht versehentlich verlassen.
@@ -876,9 +899,26 @@ async function navigate(target) {
     await state.mines.abandon();
   }
 
+  // Eine laufende Blackjack-Runde ebenso: die Einsätze liegen schon auf dem Tisch.
+  if (getScreen() === 'blackjack' && target !== 'blackjack' && state.blackjack?.isLive()) {
+    const leave = await confirmDialog(
+      'Runde läuft noch',
+      'Deine Einsätze liegen bereits auf dem Tisch. Wenn du die Runde jetzt verlässt, sind sie verloren.',
+      'Trotzdem verlassen'
+    );
+    if (!leave) return;
+    await state.blackjack.abandon();
+  }
+
   if (target === 'mines') {
     state.mines.render();
     showScreen('mines');
+    return;
+  }
+
+  if (target === 'blackjack') {
+    state.blackjack.render();
+    showScreen('blackjack');
     return;
   }
 
@@ -967,8 +1007,22 @@ async function deleteAccount() {
 
 function applySettings() {
   sound.setEnabled(state.settings.sound);
+  sound.setVolume(volumePercent() / 100);
   $('#set-sound').checked = state.settings.sound;
   $('#set-speed').value = state.settings.speed;
+  $('#set-volume').value = String(volumePercent());
+  $('#set-volume-value').textContent = `${volumePercent()} %`;
+}
+
+/** Lautstärke als ganze Prozent, immer innerhalb 0…100. */
+function volumePercent() {
+  const v = Number(state.settings.volume);
+  return Number.isFinite(v) ? Math.min(100, Math.max(0, Math.round(v))) : 70;
+}
+
+/** Grundtempo der Kartenanimationen – richtet sich nach dem Animationstempo. */
+function animationPace() {
+  return { fast: 130, normal: 210, cinematic: 330 }[state.settings.speed] || 210;
 }
 
 /* ==================================================================== */
@@ -998,6 +1052,22 @@ async function boot() {
     sound
   });
   state.mines.init();
+
+  // Blackjack nutzt dieselbe schmale Schnittstelle wie Mines.
+  state.blackjack = createBlackjack({
+    available,
+    spend: (n) => { state.profile.balance -= n; },
+    credit,
+    persist,
+    paintBalance: () => paintBalance(available()),
+    recordRound,
+    gameStats,
+    toast,
+    pace: animationPace,
+    sound
+  });
+  state.blackjack.init();
+
   applySettings();
 
   // Navigation
@@ -1038,6 +1108,15 @@ async function boot() {
     saveSettings(state.settings);
     sound.setEnabled(state.settings.sound);
     if (state.settings.sound) sound.chip();
+  });
+  $('#set-volume').addEventListener('input', (e) => {
+    state.settings.volume = Number(e.target.value);
+    $('#set-volume-value').textContent = `${volumePercent()} %`;
+    sound.setVolume(volumePercent() / 100);
+  });
+  $('#set-volume').addEventListener('change', () => {
+    saveSettings(state.settings);
+    if (state.settings.sound) sound.card();
   });
   $('#set-speed').addEventListener('change', (e) => {
     state.settings.speed = e.target.value;
@@ -1107,7 +1186,8 @@ window.__grandVert = {
   get bets() { return [...state.ledger.map.entries()]; },
   get profile() { return state.profile; },
   wheel: () => state.wheel?.debugState(),
-  mines: () => state.mines?.debug()
+  mines: () => state.mines?.debug(),
+  blackjack: () => state.blackjack?.debug()
 };
 
 boot();

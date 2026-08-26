@@ -496,7 +496,7 @@ export const store = {
 /* Einstellungen (rein lokal, kein Personenbezug)                      */
 /* ------------------------------------------------------------------ */
 
-export const defaultSettings = { sound: true, speed: 'normal', confirmBets: false };
+export const defaultSettings = { sound: true, volume: 70, speed: 'normal', confirmBets: false };
 
 export function loadSettings() {
   try {

@@ -35,6 +35,14 @@ export const GAMES = [
     screen: 'mines'
   },
   {
+    id: 'blackjack',
+    title: 'Blackjack',
+    tagline: 'Schlag den Dealer – so nah an 21 wie möglich, ohne drüber.',
+    facts: ['Bis zu 5 Hände', 'Blackjack zahlt 3:2', 'Verdoppeln & Teilen'],
+    available: true,
+    screen: 'blackjack'
+  },
+  {
     id: 'soon',
     title: 'Weitere Minigames',
     tagline: 'In Arbeit – schau bald wieder vorbei.',
