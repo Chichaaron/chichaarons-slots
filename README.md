@@ -1,8 +1,11 @@
-# Grand Vert — Roulette
+# Chichaarons Slots
 
-Europäisches Roulette mit **virtuellem Spielgeld**. Account-System, dauerhaft
-gespeicherter Spielstand, korrekte Auszahlungsregeln und eine Rad-Animation, die
-immer genau das vorher ausgewürfelte Ergebnis darstellt.
+Kleine Spieleplattform mit **virtuellem Spielgeld**: Spielauswahl, Roulette,
+Design-Shop und täglicher Bonus. Account-System, dauerhaft gespeicherter
+Spielstand, korrekte Auszahlungsregeln und eine Rad-Animation, die immer genau
+das vorher ausgewürfelte Ergebnis darstellt.
+
+Navigation: **Hauptmenü → Spielen → Minigame-Auswahl → Spiel**
 
 Kein Echtgeld, keine Einzahlungen, keine Werbung, kein Tracking, keine externen
 Schriftarten oder CDNs.
@@ -15,7 +18,7 @@ Das Projekt nutzt ES-Module. Die müssen über einen Server geladen werden – e
 Doppelklick auf `index.html` reicht **nicht**.
 
 ```bash
-cd grand-vert-roulette
+cd chichaarons-slots
 python3 -m http.server 8080     # oder: npx serve .
 ```
 
@@ -33,7 +36,7 @@ mit allem drin und lässt sich direkt per Doppelklick öffnen.
    ```bash
    git init
    git add .
-   git commit -m "Grand Vert Roulette"
+   git commit -m "Chichaarons Slots"
    git branch -M main
    git remote add origin https://github.com/DEIN-NAME/DEIN-REPO.git
    git push -u origin main
@@ -97,12 +100,356 @@ automatisch auf lokale Konten zurück, statt gar nicht zu starten.
 
 ---
 
+## Aufbau der Plattform
+
+| Bereich | Was passiert dort |
+| --- | --- |
+| Hauptmenü | Guthaben, Einstieg in Spielen / Shop / Einstellungen |
+| Spielauswahl | Karten aller Minigames, Platzhalter für kommende Spiele |
+| Roulette | Kessel, Einsätze, Rad; „‹ Spiele" führt zurück zur Auswahl |
+| Mines | Feld aufdecken, Multiplikator steigt, jederzeit auszahlen |
+| Blackjack | bis zu drei Hände gegen den Dealer, 6-Deck-Schuh |
+| Crash | die Kurve steigt, rechtzeitig auszahlen |
+| Plinko | Kugeln fallen durch 16 Reihen Stifte in 17 Multiplikatorfelder |
+| Shop | Boni inklusive Notfallguthaben und die kaufbaren Designs |
+| Einstellungen | Gamertag, Sound, Lautstärke, Kartengeschwindigkeit, Tempo, Datenexport, Konto löschen |
+
+### Mines
+
+Feldgröße (4×4 bis 7×7), Minenzahl und Einsatz wählen, dann Felder aufdecken.
+Jedes sichere Feld erhöht den Multiplikator, eine Mine beendet die Runde.
+
+Der Multiplikator ist nicht geschätzt, sondern hergeleitet. Die Chance, `k`
+Felder hintereinander zu überleben, ist `C(sicher, k) / C(gesamt, k)`; der faire
+Multiplikator ist der Kehrwert davon. Darauf liegt eine Quote, die mit jedem
+weiteren Feld steigt:
+
+```
+rtpAt(1) = 0,845        →        rtpAt(∞) → 0,97
+```
+
+Daraus folgt direkt: Wer nach genau `k` Feldern auszahlt, bekommt langfristig
+`rtpAt(k)` seines Einsatzes zurück – bei einem Feld also nur 84,5 %. **Ein
+"immer ein Feld, dann Cash-Out" ist damit rechnerisch ein sicherer Verlust**,
+unabhängig von Feldgröße und Minenzahl. Wer weiter geht, spielt gegen einen
+kleineren Hausvorteil, trägt dafür aber das echte Risiko.
+
+Beispiel 4×4 mit einer Mine: `0,90× → 1,00× → 1,11× → 1,22× → 1,35×`.
+Mit fünf Minen auf demselben Feld: `1,23× → 1,91× → 3,05×`.
+Wenig Risiko heißt also langsamer Anstieg, viel Risiko schneller Anstieg – und
+das ergibt sich aus der Formel, nicht aus einer Tabelle.
+
+Weitere Regeln:
+
+* Die Minen werden beim Rundenstart einmal kryptografisch verteilt und ändern
+  sich während der Runde nicht.
+* Der Einsatz wird beim Start abgebucht **und sofort gespeichert**. Ein Neuladen
+  kann eine laufende Runde also nicht rückgängig machen; wer mittendrin geht,
+  verliert den Einsatz (es kommt vorher eine Rückfrage).
+* Sind alle sicheren Felder gefunden, wird automatisch ausgezahlt.
+* Es bleibt immer mindestens ein sicheres Feld übrig (`Minen ≤ Felder − 1`).
+
+### Blackjack
+
+Amerikanisches Blackjack mit sechs Decks. Jeton wählen, auf einen der drei
+Plätze tippen (mehrfach tippen stapelt den Einsatz), dann **GEBEN**.
+
+Regelwerk – im ganzen Spiel einheitlich, nachlesbar im Kopf von
+`js/blackjack-rules.js`:
+
+* 6 Decks in einem sichtbaren Schuh, Cut Card bei etwa der Hälfte; das
+  Neumischen zwischen zwei Runden wird angezeigt und angekündigt.
+* Der Dealer zieht bis 16 und bleibt ab 17 stehen – **auch bei weicher 17**
+  (S17). Bei Ass oder Zehnerkarte prüft er sofort auf Blackjack.
+* **Blackjack zahlt 2,5×** (also 3:2), normaler Gewinn 2,0×, Unentschieden
+  gibt den Einsatz zurück. Alle Beträge sind ganze Euro.
+* **Verdoppeln** auf die ersten beiden Karten, danach genau eine Karte
+  (sie wird quer gelegt). Vorher fragt das Spiel, ob diese Karte **offen**
+  oder **verdeckt** liegen soll – siehe unten.
+* **Teilen** bei gleichem Kartenwert – Bube + Dame zählt also auch. Geteilte
+  Asse bekommen genau eine Karte. Geteilte Hände können erneut geteilt
+  werden, bis die Grenze von **drei Händen** erreicht ist. Diese Grenze gilt
+  hart: Startplätze und Splits zusammen sind nie mehr als drei.
+* Nach einem Split ist Ass + Zehn **kein** Blackjack, sondern eine normale 21.
+* Der Gesamteinsatz wird beim Geben abgebucht **und sofort gespeichert** –
+  ein Neuladen macht die Runde nicht rückgängig. Wer mittendrin geht,
+  verliert die Einsätze (es kommt vorher eine Rückfrage).
+* Die Einsätze bleiben nach der Runde auf den Plätzen liegen, solange das
+  Guthaben reicht.
+
+#### Verdoppeln: offen oder verdeckt
+
+Nach dem Klick auf VERDOPPELN erscheint die Auswahl **OFFEN / VERDECKT**.
+Erst danach wird der Einsatz verdoppelt und genau eine Karte gegeben.
+
+Wichtig: Die Karte wird in beiden Fällen **im selben Moment gezogen** und
+steht damit fest. „Verdeckt" ist ausschließlich eine Darstellungsoption – die
+Karte liegt bereits in `hand.cards`, lediglich ihr Index steht zusätzlich in
+`hand.hidden` und das Kartenelement trägt `.is-down`. Der Handwert zeigt
+solange `13 + ?` statt der Summe. Aufgedeckt wird beim Dealerzug, bevor der
+Dealer zieht; dabei wird nichts neu bestimmt.
+
+#### Kartengeschwindigkeit
+
+Vier Stufen in den Einstellungen (`CARD_SPEEDS` in `js/blackjack.js`):
+
+| Stufe | Pause je Karte | Flug | Umdrehen |
+| --- | --- | --- | --- |
+| LANGSAM | 760 ms | 700 ms | 620 ms |
+| MITTEL (Standard) | 500 ms | 480 ms | 430 ms |
+| SCHNELL | 300 ms | 300 ms | 280 ms |
+| EXTREM SCHNELL | 150 ms | 170 ms | 150 ms |
+
+Die Stufe wird in den lokalen Einstellungen gespeichert und übersteht das
+Schließen der Seite. Sie setzt nur `--bj-move-ms` / `--bj-flip-ms` am
+Bildschirm und die Wartezeiten zwischen den Karten. **Auf das Ergebnis hat
+sie keinen Einfluss**: `shoe.draw()` läuft immer vor der Animation, die
+Reihenfolge im Schuh steht seit dem Mischen fest.
+
+#### Karten
+
+Die Karten sind Inline-SVG (`js/cards.js`). Die vier Farbzeichen sind echte
+**Vektorpfade**, keine Schriftzeichen – dadurch sehen sie auf jedem Gerät
+gleich aus und bleiben bei jeder Größe scharf. Die Farben kommen aus den
+`--card-…` Tokens; jedes Design bringt eigene mit, inklusive Kartenrücken.
+Es werden keine Bilddateien geladen.
+
+Passen die Karten einer Hand nicht mehr nebeneinander, werden sie über
+`--n` gleichmäßig kleiner, statt in die Nachbarhand zu ragen. Auf dem
+Smartphone stehen die Hände untereinander statt nebeneinander.
+
+Der Hausvorteil entsteht allein aus den Regeln (der Spieler geht zuerst und
+verliert bei Überkaufen sofort). In der Simulation über 300.000 Hände liegt
+die Auszahlungsquote bei rund 94 % für eine einfache „ziehen bis 17"-Strategie.
+
+### Crash
+
+Einsatz wählen, **SPIELEN**, und der Multiplikator klettert los. Wer vor dem
+Absturz auf **AUSZAHLEN** drückt, bekommt `Einsatz × Multiplikator`.
+
+**Nach dem Auszahlen läuft die Runde weiter.** Der Gewinn ist sofort gebucht
+und ändert sich nicht mehr, aber Kurve und Multiplikator laufen bis zum
+vorher bestimmten Crash-Punkt weiter – man sieht also, wie weit es noch
+gegangen wäre. Währenddessen ist ein zweites Auszahlen ausgeschlossen
+(`cashedAt` ist gesetzt) und es lässt sich keine neue Runde starten
+(`canStart()` verlangt `phase !== 'running'`). Erst der Crash schließt die
+Runde ab und trägt sie in Statistik und Verlauf ein.
+
+**Der Crash-Punkt steht fest, bevor die Animation startet.** `drawCrashPoint()`
+zieht ihn beim Rundenstart, `timeForMultiplier()` rechnet ihn in einen
+Zeitpunkt um; die Animation läuft danach nur noch bis genau dorthin. Die
+Darstellung kann das Ergebnis also nicht beeinflussen – und wer zu spät
+klickt, kommt nicht mehr durch (`cashOut()` prüft die verstrichene Zeit erneut).
+
+#### Verteilung der Crash-Punkte
+
+```
+crash = (1 − HOUSE_EDGE) / (1 − u)        u gleichverteilt in [0, 1)
+```
+
+Daraus folgt exakt `P(Crash ≥ x) = (1 − HOUSE_EDGE) / x`. Zwei Konsequenzen:
+
+* Niedrige Werte sind sehr viel häufiger als hohe – die Verteilung fällt mit
+  `1/x`, nicht linear.
+* **Jedes Ausstiegsziel zahlt langfristig dasselbe**, nämlich 97 %:
+  `x · (1 − HOUSE_EDGE)/x`. Sofort bei 1,01× auszusteigen ist damit kein
+  Freifahrtschein – Tests prüfen das für 1,01× bis 100×.
+
+| Bereich | Häufigkeit |
+| --- | --- |
+| genau 1,00× (Sofort-Crash) | ~4 % |
+| unter 2,00× | ~51 % |
+| 2× bis 5× | ~29 % |
+| 5× bis 10× | ~9,7 % |
+| 10× bis 100× | ~8,7 % |
+| 100× bis 1.000× | ~0,9 % |
+| 1.000× bis 10.000× | ~0,09 % |
+| 10.000× bis 50.000× | ~0,008 % |
+| genau 50.000× (Obergrenze) | ~0,002 % (etwa 1 von 51.500) |
+
+**1,00× ist möglich** – die Runde kann sofort enden. **50.000× ist möglich** –
+nur eben außergewöhnlich selten.
+
+#### Kurve
+
+```
+m(t) = e^(A · t^P)        A = 0,1286   P = 1,12
+```
+
+Der Exponent über 1 sorgt dafür, dass nicht nur der Multiplikator, sondern
+auch seine Steigerungsrate mit der Zeit wächst. 2× nach etwa 4,5 s, 10× nach
+14,5 s, 100× nach 24 s, 50.000× nach 52 s.
+
+Der Graph liegt auf einem Canvas (`createCrashGraph`), holt seine Farben aus
+den `--crash-…` Tokens und skaliert beide Achsen automatisch mit, damit auch
+hohe Multiplikatoren im Bild bleiben.
+
+### Plinko
+
+Einsatz und Schwierigkeit wählen, **KUGEL STARTEN** – die Kugel fällt durch
+16 Reihen Stifte, wird an jedem Stift nach links oder rechts abgelenkt und
+landet in einem von 17 Multiplikatorfeldern.
+
+**Es gibt keine Wartezeit.** Der Startknopf sperrt nie, solange das Guthaben
+reicht; beliebig viele Kugeln dürfen gleichzeitig fallen. Jede Kugel ist ein
+eigenes Spiel mit eigener Nummer: genau einmal abbuchen, genau einmal
+auszahlen (`ball.paid`). Kugeln beeinflussen einander nie.
+
+**Der Weg steht fest, bevor die Animation beginnt.** `drawPath()` zieht
+16 kryptografische Bits; `slotOfPath()` zählt die Rechts-Ablenkungen. Damit ist
+das Feld bereits beim Start bekannt und liegt zwangsläufig zwischen 0 und 16 –
+die Kugel kann gar nicht daneben landen, und die Auszahlung ist immer exakt
+`Einsatz × Multiplikator`, abgerundet auf volle Euro.
+
+#### Wahrscheinlichkeiten und Multiplikatoren
+
+16 faire Münzwürfe ergeben die Binomialverteilung:
+
+| Feld (von der Mitte) | Mitte | ±1 | ±2 | ±3 | ±4 | ±5 | ±6 | ±7 | außen |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Häufigkeit | 19,6 % | 17,5 % | 12,2 % | 6,7 % | 2,8 % | 0,85 % | 0,18 % | 0,024 % | 0,0015 % |
+
+Danach richten sich die vier Stufen (Werte von außen zur Mitte, gespiegelt):
+
+| Stufe | Multiplikatoren | Quote |
+| --- | --- | --- |
+| LEICHT | 16 · 9 · 2 · 1,4 · 1,4 · 1,2 · 1,1 · 1 · 0,4 | 97,0 % |
+| MITTEL | 110 · 41 · 10 · 5 · 3 · 1,5 · 1 · 0,5 · 0,2 | 97,0 % |
+| SCHWER | 1.000 · 130 · 26 · 9 · 4 · 2 · 0,2 · 0,2 · 0,1 | 97,0 % |
+| EXTREM | 10.000 · 170 · 25 · 7 · 3 · 0,5 · 0,2 · 0,2 · 0,1 | 97,1 % |
+
+Je wahrscheinlicher ein Feld, desto kleiner sein Multiplikator – ein Test prüft
+das für jede Stufe. Alle vier liegen bei rund 97 %, genau wie Roulette,
+Blackjack, Crash und Mines. Keine Stufe ist also besser, sie unterscheiden sich
+nur im Risiko.
+
+#### Brett und Bewegung
+
+Reihe `r` hat `r + 3` Stifte im Abstand `s`; die Kugel startet mittig und wird
+an jedem Stift um `s/2` versetzt. Nach 16 Reihen steht sie genau über der Mitte
+von Feld `k` bei `x = Mitte + (k − 8) · s`. Die Multiplikatorleiste im DOM
+bekommt denselben Rand (`--plinko-pad` schreibt js/plinko.js) und liegt dadurch
+exakt unter den Rutschen.
+
+Zwischen zwei Stiften fliegt die Kugel auf einer Wurfparabel
+(`hopCoefficients`): kurzer Absprung nach oben, dann beschleunigt nach unten.
+Die Reihen werden nach unten hin schneller, ein kompletter Fall dauert rund
+zwei Sekunden. Stifte, Kugeln und Farben liegen auf einem Canvas und kommen aus
+den `--plinko-…` Tokens des aktiven Designs.
+
+Beim Verlassen des Bildschirms und beim Schließen der Seite werden fliegende
+Kugeln sofort abgerechnet – es kann kein Gewinn verloren gehen.
+
+### Ein neues Minigame ergänzen
+
+Alles Nötige steht in `js/catalog.js`:
+
+```js
+export const GAMES = [
+  …,
+  {
+    id: 'blackjack',
+    title: 'Blackjack',
+    tagline: 'Näher an 21 als der Croupier.',
+    facts: ['1 Spieler', 'Auszahlung 3:2'],
+    available: true,          // false => graue Platzhalter-Karte
+    screen: 'blackjack'       // id des <section class="screen" id="screen-blackjack">
+  }
+];
+```
+
+Karte, Hover-Effekt und Navigation entstehen daraus automatisch. Zu bauen bleibt
+nur der Bildschirm selbst.
+
+### Ein neues Design ergänzen
+
+Zwei Schritte:
+
+1. Eintrag in `THEMES` in `js/catalog.js` (id, Name, Preis, Beschreibung, drei Farbtupfer)
+2. Block `:root[data-theme="<id>"] { … }` in `css/style.css` mit denselben Tokens
+   wie die vorhandenen Themes
+
+Das gesamte Erscheinungsbild – Menü, Spielauswahl, Shop, Roulettetisch und sogar
+die Farben des Rades – ergibt sich aus diesen Tokens. Kein Bauteil kennt eine
+feste Farbe.
+
+Für die Sichtbarkeit klickbarer Elemente gibt es eigene Tokens, die jedes Theme
+setzen muss: `--edge` (Rand im Ruhezustand), `--edge-hi` (Hover/aktiv),
+`--edge-glow` (weicher Schein), `--edge-top` (Lichtkante) und `--press`
+(Schatten im gedrückten Zustand). Buttons, Menükarten, Spielkarten,
+Design-Karten, Jetons und die Felder des Tischs greifen alle darauf zu.
+
+### Gamertag
+
+Jeder Spieler vergibt sich in den Einstellungen einen Namen (3–22 Zeichen,
+Buchstaben, Zahlen, Leerzeichen und übliche Sonderzeichen). Im Hauptmenü steht
+danach nur noch dieser Name – die E-Mail-Adresse taucht dort nicht mehr auf.
+
+Der Filter in `js/gamertag.js` arbeitet in Stufen statt mit einer stumpfen
+Wortliste: Der Name wird kleingeschrieben, von Akzenten befreit, Leetspeak wird
+aufgelöst (`H1-T.L.E.R` → `hitler`), Trennzeichen fallen weg und
+Zeichenwiederholungen werden zusätzlich eingedampft (`hiiitler` → `hitler`).
+Erst danach wird gegen die Blockliste geprüft. Harmlose Wörter, die zufällig
+einen Baustein enthalten (`Analyse`, `Fickle`, `Kanal`), stehen in einer
+Ausnahmeliste und werden vorher herausgerechnet. Beide Listen lassen sich
+jederzeit ergänzen.
+
+Die Eindeutigkeit sichert ein UNIQUE-Index über `lower(gamertag)` in der
+Datenbank – zwei gleichzeitige Anfragen können denselben Namen dadurch nicht
+beide bekommen.
+
+### Designs und Boni
+
+| Design | Preis | Stil |
+| --- | ---: | --- |
+| Classic Green | — | Standard, tiefes Grün mit Gold |
+| Noir | 15.000 € | Schwarz mit Platinakzenten |
+| Royal Bordeaux | 30.000 € | Weinrot mit Messing |
+| Ivory & Gold | 100.000 € | Helles Design in Creme und Gold |
+
+Gekaufte Designs gehören dauerhaft zum Konto und werden nie doppelt bezahlt.
+
+Im Shop gibt es drei Boni:
+
+| Bonus | Betrag | Zyklus |
+| --- | ---: | --- |
+| Tagesbonus | 10.000 € | täglich 00:00 Uhr (GMT+2) |
+| Zeitbonus | 2.000 € | 4 Stunden nach der letzten Abholung |
+| Wochenbonus | 25.000 € | montags 00:00 Uhr (GMT+2) |
+
+Prüfen, Gutschreiben und Markieren passiert in **einer** Datenbankfunktion
+(`claim_bonus`) mit Zeilensperre. Maßgeblich ist immer `now()` auf dem Server –
+eine verstellte Uhr, ein Neuladen oder ein Gerätewechsel ändern daran nichts,
+und schnelles Mehrfachklicken kann denselben Bonus nicht zweimal auslösen.
+Der Countdown im Browser rechnet nur mit dem Versatz zur zuletzt gemeldeten
+Serverzeit; sobald ein Bonus frei wird, fragt die Seite einmal beim Server nach.
+
+Sobald mindestens ein Bonus bereitsteht, erscheint im Hauptmenü ein kleiner
+goldener Punkt am Eintrag *Shop*. Er wird sekündlich neu bestimmt, also auch
+während einer laufenden Roulette- oder Mines-Partie.
+
+### Grenzen
+
+| Konstante | Wert | Wo |
+| --- | ---: | --- |
+| `MAX_BET` | 999.999.999 € pro Feld | `js/bets.js` |
+| `MAX_BALANCE` | 999.999.999.999 € | `js/bets.js` |
+
+`MAX_BALANCE` deckelt Gutschriften, damit eine extreme Glückssträhne keinen Wert
+erzeugt, den die Datenbankspalte `numeric(14,2)` nicht mehr aufnehmen kann.
+
 ## Spielablauf
 
 1. **Startmenü** — Spielen, Shop (Platzhalter), Einstellungen.
-2. **Setzen** — Jeton wählen (1 € bis 200 € oder eigener Betrag), dann Felder
-   anklicken. Rechtsklick nimmt einen Jeton wieder weg. Der Einsatz wird sofort
-   vom Guthaben abgezogen; mehr als vorhanden ist, kann nie gesetzt werden.
+2. **Setzen** — Jeton wählen (10 € bis 1.000 €, **MAX** oder ein eigener Betrag),
+   dann Felder anklicken. Rechtsklick nimmt einen Jeton wieder weg. Der Einsatz
+   wird sofort vom Guthaben abgezogen; mehr als vorhanden ist, kann nie gesetzt
+   werden.
+
+   **MAX** setzt immer das Kleinere aus aktuellem Guthaben und dem Einsatzlimit
+   `MAX_BET = 999.999.999 €` (in `js/bets.js`). Bei 2.000 € Guthaben setzt MAX
+   also 2.000 €, bei 2 Milliarden nur 999.999.999 €. Der Knopf zeigt jederzeit
+   an, welcher Betrag das gerade ist.
 3. **LET IT RIDE** — die Gewinnzahl wird per `crypto.getRandomValues()`
    bestimmt, *bevor* die Animation startet. Danach wird der Tisch gesperrt.
 4. **Animation** — das Brett fährt zur Seite, das Rad in die Mitte, die Kugel
@@ -130,21 +477,32 @@ Bei der 0 verlieren alle Außenwetten – daraus ergibt sich der Hausvorteil von
 ## Projektstruktur
 
 ```
-index.html            Alle Bildschirme (Login, Menü, Spiel, Shop, Einstellungen, Datenschutz)
-css/style.css         Komplettes Design, dunkelgrün/schwarz/rot mit Gold-Akzenten
+index.html            Alle Bildschirme (Login, Menü, Spielauswahl, Spiel, Shop, Einstellungen, Datenschutz)
+css/style.css         Komplettes Design mit fünf Themes (Classic, Noir, Royal, Platinum, Ivory)
 js/
   config.js           Supabase-Zugang, Startguthaben, Jeton-Werte
+  catalog.js          Minigames und kaufbare Designs – hier wird erweitert
   roulette.js         Radreihenfolge, Farben, Zufallssystem, Wettarten, Auszahlungen
   storage.js          Konten & Spielstand (lokal oder Supabase) hinter einer API
-  bets.js             Einsätze der laufenden Runde, Rückgängig/Löschen/Wiederholen
+  bets.js             Einsätze der Runde + MAX_BET / MAX_BALANCE / CHIPS
+  gamertag.js         Namensprüfung und Filter
+  bonus.js            Bonusarten, Zyklen und Zeitgrenzen (GMT+2)
+  mines.js            Minigame Mines: Logik, Wahrscheinlichkeiten, Oberfläche
+  cards.js            Spielkarten als SVG (spielunabhängig, theme-fähig)
+  crash.js            Minigame Crash: Verteilung, Kurve, Canvas-Graph, Oberfläche
+  plinko.js           Minigame Plinko: Multiplikatoren, Wege, Brett, mehrere Kugeln
+  blackjack-rules.js  Blackjack: Handwerte, Kartenschuh, Dealerzug, Auswertung
+  blackjack.js        Blackjack: Tisch, Animationen, Rundenablauf
   table.js            Aufbau des Roulette-Bretts, Jetons auf den Feldern
-  wheel.js            Canvas-Rad und Kugelanimation
+  wheel.js            Canvas-Rad und Kugelanimation (Farben kommen aus dem Theme)
   sound.js            Kurze Klänge über die Web Audio API (abschaltbar)
   ui.js               Bildschirmwechsel, Einsatzübersicht, Auswertung, Dialoge
   app.js              Rundenablauf und Verdrahtung
-supabase/schema.sql   Tabellen, RLS-Policies, Trigger, Löschfunktion
+supabase/schema.sql                Tabellen, RLS-Policies, Trigger, Löschfunktion
+supabase/update-2-gamertag-bonus.sql  Gamertag-Spalte, Bonus-Spalten und -Funktionen
+supabase/update-3-crash-bailout.sql   Notfallguthaben als serverseitiger Bonus
 build/build.mjs       Baut dist/standalone.html (eine einzige Datei)
-tests/                Logik-Tests (Node) und End-to-End-Test (Browser)
+tests/                Logik-Tests (Node) und End-to-End-Tests (Browser)
 ```
 
 ---
@@ -154,7 +512,15 @@ tests/                Logik-Tests (Node) und End-to-End-Test (Browser)
 ```bash
 npm test                       # Auszahlungen, Zufallsverteilung, Guthabenführung
 node build/build.mjs           # Einzeldatei-Build erzeugen
-python3 tests/e2e.py           # Browser-Durchlauf (benötigt Playwright + laufenden Server)
+python3 tests/e2e.py           # Runde, Persistenz, Konto (benötigt Playwright + Server)
+python3 tests/e2e_extra.py     # Wiederholen, Pleite-Hilfe, Einstellungen, Datenexport
+python3 tests/e2e_hub.py       # Spielauswahl, Designkäufe, Themes, 24-Stunden-Bonus
+python3 tests/e2e_max.py       # Jeton-Werte, MAX-Einsatz, Einsatzlimit
+python3 tests/e2e_mines.py     # Mines: Ablauf, Cash-Out, Verlust, Persistenz
+python3 tests/e2e_account.py   # Gamertag, Namensfilter, Boni und Countdowns
+python3 tests/e2e_blackjack.py # Blackjack: Geben, Ziehen, Verdoppeln, Teilen, Auszahlung
+python3 tests/e2e_crash.py     # Crash: Kurve, Cash-Out, Sofort-Crash, Notfallguthaben
+python3 tests/e2e_plinko.py    # Plinko: Wege, Auszahlungen, viele Kugeln, alle Designs
 ```
 
 Die Logik-Tests prüfen unter anderem:
@@ -163,6 +529,25 @@ Die Logik-Tests prüfen unter anderem:
 * jede Wettart hat exakt den Hausvorteil 1/37
 * Chi-Quadrat-Test über 370.000 Würfe auf Gleichverteilung
 * 200.000 simulierte Runden ohne negatives Guthaben oder Rundungsfehler
+* Mines: Erwartungswert jedes Cash-Outs exakt `rtpAt(k)`, erstes Feld bei
+  sicheren Runden unter 1,00×, Chi-Quadrat auf die Minenverteilung
+* Gamertag: gesperrte Namen inklusive Verschleierung, harmlose Namen bleiben frei
+* Boni: Tages- und Wochengrenze auf 00:00 GMT+2, Zeitbonus exakt nach 4 Stunden
+* Blackjack: vier Tempostufen (jede echt schneller als die vorige),
+  Handwerte inklusive Ass-Abstufung, Split nach Kartenwert,
+  Dealerzug bei weicher 17, alle vier Auszahlungsfälle, Blackjack nach Split,
+  312 Karten ohne Dublette, Chi-Quadrat über 130.000 Züge aus dem Schuh und
+  eine Simulation über 300.000 Hände
+* Crash: 1,00× und 50.000× sind erreichbar, die Verteilung folgt exakt
+  `(1−Hausvorteil)/x`, jedes Ausstiegsziel zahlt gleich viel, die Kurve steigt
+  streng monoton und immer schneller, Zeit und Multiplikator sind exakt umkehrbar
+* Notfallguthaben: nur bei genau 0 €, bei 1 € schon nicht mehr
+* Spielkarten: alle 52 Karten liefern gültiges SVG, jede Zahlenkarte zeigt
+  genau so viele Zeichen wie ihr Wert, alle vier Farben sind eigene Pfade
+  und kein Farbzeichen steckt noch als Schriftzeichen im Bild
+* Stylesheet: kein Farbtoken zeigt auf sich selbst, jedes benutzte `var(--x)`
+  ist im `:root` definiert und jedes Theme setzt die Kontrast- und
+  Kartenfarben-Tokens
 
 Der Browser-Test spielt eine komplette Runde durch und prüft zusätzlich, dass
 die Kugel physisch in der Tasche der vorher bestimmten Zahl liegt (Winkel-
@@ -187,15 +572,21 @@ Anmelden übersteht.
 
 ## Bekannte Grenzen
 
-* **Der Spielstand wird im Browser berechnet.** Wer die Entwicklerkonsole
-  öffnet, kann sein eigenes virtuelles Guthaben manipulieren. Für ein reines
+* Gekaufte Designs, das aktive Design und der Bonus-Zeitpunkt liegen im
+  `stats`-Feld des Profils. Dadurch braucht es keine zusätzliche Datenbankspalte –
+  in Supabase ist `stats` eine JSON-Spalte.
+* **Der Spielstand wird im Browser berechnet.** Die Row-Level-Security sorgt
+  dafür, dass niemand fremde Spielstände lesen oder ändern kann – sie kann aber
+  nicht verhindern, dass jemand über die Entwicklerkonsole seinen *eigenen*
+  Kontostand überschreibt. Für ein reines
   Spielgeld-Projekt ist das in Ordnung; wenn Ergebnisse manipulationssicher sein
   müssten (z. B. für eine Bestenliste), müsste das Ziehen der Zahl und die
   Auszahlung in eine Supabase Edge Function wandern und die `profiles`-Tabelle
   für direkte Schreibzugriffe gesperrt werden.
 * Split-, Street- und Corner-Wetten (Einsätze auf Feldkanten) sind bewusst nicht
   umgesetzt – gesetzt wird auf Einzelzahlen und die klassischen Außenwetten.
-* Shop und Jeton-Designs sind Platzhalter.
+* Der Bonus-Timer verwendet die Uhr des Geräts. Wer sie zurückstellt, bekommt den
+  Bonus früher; gesperrt wird dadurch aber nie jemand.
 
 ---
 

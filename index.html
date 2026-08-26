@@ -482,6 +482,103 @@
   </main>
 </section>
 
+<!-- ===================== Plinko ===================== -->
+<section id="screen-plinko" class="screen" hidden>
+  <header class="topbar">
+    <button class="icon-btn" data-nav="games" title="Zurück zur Spielauswahl">‹ Spiele</button>
+    <div class="topbar-brand">
+      <span class="brand-mark brand-mark-sm" aria-hidden="true"></span>
+      <span>PLINKO</span>
+    </div>
+    <div class="topbar-right">
+      <div class="stat stat-balance">
+        <span class="stat-label">Guthaben</span>
+        <strong class="stat-value" data-balance>—</strong>
+      </div>
+    </div>
+  </header>
+
+  <main class="plinko-layout">
+    <!-- Schwierigkeit, Einsatz und Bilanz -->
+    <aside class="plinko-panel" id="plinko-panel">
+      <section class="plinko-step">
+        <h2 class="plinko-step-title"><span class="plinko-step-no">1</span> Schwierigkeit</h2>
+        <div class="risk-options" id="plinko-risks" role="radiogroup"
+             aria-label="Schwierigkeit"><!-- aus js/plinko.js --></div>
+        <p class="plinko-step-text" id="plinko-risk-text">—</p>
+      </section>
+
+      <section class="plinko-step">
+        <h2 class="plinko-step-title"><span class="plinko-step-no">2</span> Einsatz</h2>
+        <div class="chips plinko-chips" id="plinko-chips"><!-- aus js/plinko.js --></div>
+        <div class="chip-custom plinko-custom-row">
+          <label for="plinko-custom" class="sr-only">Eigener Einsatz</label>
+          <input id="plinko-custom" type="number" min="1" step="1" placeholder="Eigener Betrag" inputmode="numeric" />
+          <button class="btn btn-ghost btn-sm" id="plinko-custom-btn" type="button">Setzen</button>
+        </div>
+        <p class="plinko-bet-line">Einsatz je Kugel: <b data-plinko-bet>—</b></p>
+      </section>
+
+      <section class="plinko-step">
+        <h2 class="plinko-step-title"><span class="plinko-step-no">3</span> So läuft's</h2>
+        <p class="plinko-step-text">
+          Jede Kugel ist ein eigenes Spiel. Es gibt keine Wartezeit – du kannst
+          starten, so oft du willst, auch wenn noch Kugeln unterwegs sind.
+          Der Einsatz geht sofort ab, die Auszahlung kommt beim Landen.
+        </p>
+      </section>
+
+      <section class="plinko-step plinko-stats-step">
+        <button class="plinko-stats-toggle" id="plinko-stats-toggle" type="button"
+                aria-expanded="false" aria-controls="plinko-stats-wrap">
+          <span class="plinko-step-title">Deine Plinko-Bilanz</span>
+          <span class="plinko-caret" aria-hidden="true">▾</span>
+        </button>
+        <div class="plinko-stats-wrap" id="plinko-stats-wrap" aria-hidden="true">
+          <div class="plinko-stats-inner">
+            <div class="plinko-stats" id="plinko-stats"><!-- aus js/plinko.js --></div>
+          </div>
+        </div>
+      </section>
+    </aside>
+
+    <!-- Spielfeld und Steuerung -->
+    <section class="plinko-stage" id="plinko-stage">
+      <div class="plinko-recent-row">
+        <span class="plinko-recent-label">Letzte Kugeln</span>
+        <div class="plinko-recent" id="plinko-recent"><!-- aus js/plinko.js --></div>
+      </div>
+
+      <div class="plinko-board" id="plinko-board">
+        <canvas id="plinko-canvas" aria-label="Plinko-Spielfeld mit 16 Reihen Stiften"></canvas>
+        <div class="plinko-slots" id="plinko-slots" aria-label="Multiplikatorfelder"><!-- aus js/plinko.js --></div>
+      </div>
+
+      <div class="plinko-live">
+        <div class="plinko-live-item">
+          <span class="stat-label">Einsatz</span>
+          <strong class="stat-value" data-plinko-bet>—</strong>
+        </div>
+        <div class="plinko-live-item">
+          <span class="stat-label">Kugeln unterwegs</span>
+          <strong class="stat-value" id="plinko-active">0</strong>
+        </div>
+        <div class="plinko-live-item">
+          <span class="stat-label">Letzte Auszahlung</span>
+          <strong class="stat-value" id="plinko-last">—</strong>
+        </div>
+      </div>
+
+      <div class="plinko-result" id="plinko-result" hidden aria-live="polite"></div>
+
+      <div class="plinko-actions">
+        <button class="btn btn-gold btn-lg btn-block" id="plinko-start" type="button" disabled>KUGEL STARTEN</button>
+      </div>
+      <p class="plinko-hint" id="plinko-hint">—</p>
+    </section>
+  </main>
+</section>
+
 <!-- ===================== Shop ===================== -->
 <section id="screen-shop" class="screen" hidden>
   <div class="page-card">
