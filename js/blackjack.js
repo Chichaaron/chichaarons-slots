@@ -1,7 +1,7 @@
 /**
  * BLACKJACK – drittes Minigame der Plattform.
  *
- * Ablauf: Einsätze auf bis zu fünf Plätze legen → GEBEN → je Hand ziehen,
+ * Ablauf: Einsätze auf bis zu drei Plätze legen → GEBEN → je Hand ziehen,
  * halten, verdoppeln oder teilen → Dealer spielt → Auszahlung.
  *
  * Wie schon bei Mines liegen Logik und Oberfläche zusammen, der Zugriff auf
@@ -15,12 +15,31 @@ import {
   MAX_HANDS, DECK_COUNT, createShoe, handValue, isBlackjack, canSplitPair,
   settleHand, playDealer, dealerShouldPeek, cardValue
 } from './blackjack-rules.js';
-import { createCardElement, cardLabel } from './cards.js';
+import { createCardElement, flipCardElement } from './cards.js';
 import { CHIPS, MAX_CHIP, MAX_BET, maxBetFor } from './bets.js';
 import { money, signedMoney } from './roulette.js';
 
-/** Wie viele Startplätze der Tisch anbietet. */
+/** Wie viele Startplätze der Tisch anbietet – nie mehr als erlaubte Hände. */
 export const SPOTS = MAX_HANDS;
+
+/**
+ * Tempo der Kartenanimation. Das ist reine Darstellung: Welche Karte gezogen
+ * wird, steht bereits fest, bevor irgendetwas animiert wird (siehe drawCard).
+ * `deal` = Pause zwischen zwei Karten, `move` = Dauer des Gleitflugs aus dem
+ * Schuh, `flip` = Dauer der Umdrehbewegung. Alles in Millisekunden.
+ */
+export const CARD_SPEEDS = [
+  { id: 'slow',   label: 'LANGSAM',        hint: 'Sehr ruhig',    deal: 760, move: 700, flip: 620 },
+  { id: 'normal', label: 'MITTEL',         hint: 'Angenehm',      deal: 500, move: 480, flip: 430 },
+  { id: 'fast',   label: 'SCHNELL',        hint: 'Zügig',         deal: 300, move: 300, flip: 280 },
+  { id: 'turbo',  label: 'EXTREM SCHNELL', hint: 'Ohne Verzug',   deal: 150, move: 170, flip: 150 }
+];
+
+export const DEFAULT_CARD_SPEED = 'normal';
+
+/** Liefert immer eine gültige Stufe. */
+export const cardSpeedById = (id) =>
+  CARD_SPEEDS.find((s) => s.id === id) || CARD_SPEEDS.find((s) => s.id === DEFAULT_CARD_SPEED);
 
 /** Startwerte der spielinternen Statistik. */
 const STAT_DEFAULTS = {
@@ -44,7 +63,9 @@ const OUTCOME_LABEL = {
  *   recordRound(entry)       trägt die Runde in Statistik und Verlauf ein
  *   gameStats(key, defaults) liefert den Statistikeimer dieses Spiels
  *   toast(msg, kind)         Meldung
- *   pace()                   Grundtempo der Animationen in Millisekunden
+ *   cardSpeed()              gewählte Tempostufe ('slow'|'normal'|'fast'|'turbo')
+ *   getPref(key, fallback)   liest eine gespeicherte Oberflächen-Einstellung
+ *   setPref(key, value)      merkt sich eine Oberflächen-Einstellung
  *   sound                    Klangobjekt
  */
 export function createBlackjack(api) {
@@ -77,13 +98,31 @@ export function createBlackjack(api) {
   /** Steht gerade Geld auf dem Tisch? */
   const isLive = () => state.phase === 'dealing' || state.phase === 'playing' || state.phase === 'dealer';
 
-  const step = () => Math.max(60, api.pace ? api.pace() : 220);
+  /** Aktuelle Tempostufe aus den Einstellungen. */
+  const speed = () => cardSpeedById(api.cardSpeed ? api.cardSpeed() : DEFAULT_CARD_SPEED);
+
+  /** Pause zwischen zwei Karten. */
+  const step = () => speed().deal;
+
+  /**
+   * Schreibt die Animationsdauern als CSS-Variablen an den Bildschirm, damit
+   * Flug und Umdrehen zum eingestellten Tempo passen. Rein optisch.
+   */
+  function applySpeed() {
+    const screen = document.getElementById('screen-blackjack');
+    if (!screen) return;
+    const s = speed();
+    screen.style.setProperty('--bj-move-ms', `${s.move}ms`);
+    screen.style.setProperty('--bj-flip-ms', `${s.flip}ms`);
+    screen.dataset.speed = s.id;
+  }
 
   function newHand(spot, bet, cards = [], fromSplit = false) {
     return {
       id: `h${++handSeq}`,
       spot, bet, cards,
       els: [],
+      hidden: new Set(),   // Kartenpositionen, die (noch) verdeckt liegen
       done: false,
       doubled: false,
       fromSplit,
@@ -194,13 +233,13 @@ export function createBlackjack(api) {
   /* Tisch aufbauen                                                    */
   /* ================================================================ */
 
-  /** Zeigt in der Setzphase die fünf leeren Plätze. */
+  /** Zeigt in der Setzphase die leeren Plätze (höchstens MAX_HANDS Stück). */
   function buildSpots() {
     const host = $('#bj-seats');
     if (!host) return;
     host.innerHTML = '';
     host.classList.add('is-betting');
-    host.style.setProperty('--seats', String(SPOTS));   // fünf Plätze, mittig
+    host.style.setProperty('--seats', String(SPOTS));   // Plätze mittig verteilen
 
     for (let i = 0; i < SPOTS; i++) {
       const spot = document.createElement('div');
@@ -278,31 +317,56 @@ export function createBlackjack(api) {
 
   /**
    * Legt eine gezogene Karte an eine Spielerhand.
+   *
+   * Die Karte ist zu diesem Zeitpunkt bereits gezogen und steht fest – auch
+   * eine verdeckt gelegte Karte (`faceDown`) wird NICHT später neu bestimmt,
+   * sie wird nur später umgedreht.
+   *
    * @param {object} hand
    * @param {{r:string,s:string}} card
-   * @param {boolean} sideways  quergelegte Karte beim Verdoppeln
+   * @param {{sideways?:boolean, faceDown?:boolean}} opts
    */
-  function addCardToHand(hand, card, sideways = false) {
+  function addCardToHand(hand, card, opts = {}) {
+    const index = hand.cards.length;
     hand.cards.push(card);
-    const el = createCardElement(card, false);
-    if (sideways) el.classList.add('is-sideways');
+    const el = createCardElement(card, Boolean(opts.faceDown));
+    if (opts.sideways) el.classList.add('is-sideways');
+    if (opts.faceDown) {
+      el.classList.add('is-hole');
+      hand.hidden.add(index);
+    }
+    // Karten liegen links nach rechts übereinander – spätere Karten oben.
+    // Ohne festes z-index sortiert der Browser 3D-transformierte Karten neu.
+    el.style.zIndex = String(index + 1);
     hand.els.push(el);
     const host = document.getElementById(`cards-${hand.id}`);
     if (host) {
       host.appendChild(el);
+      fitCards(host, hand);
       animateFromShoe(el);
     }
     api.sound.card();
     paintHandTotal(hand);
   }
 
+  /**
+   * Teilt dem Kartenfeld mit, wie viele Karten es unterbringen muss. Eine
+   * quer gelegte Karte braucht etwa die anderthalbfache Breite.
+   */
+  function fitCards(host, hand) {
+    const sideways = hand.els.some((el) => el.classList.contains('is-sideways'));
+    host.style.setProperty('--n', String(hand.cards.length + (sideways ? 0.55 : 0)));
+  }
+
   function addCardToDealer(card, faceDown = false) {
     state.dealer.push(card);
     const el = createCardElement(card, faceDown);
+    el.style.zIndex = String(state.dealer.length);
     state.dealerEls.push(el);
     const host = $('#bj-dealer-cards');
     if (host) {
       host.appendChild(el);
+      host.style.setProperty('--n', String(Math.max(2, state.dealer.length)));
       animateFromShoe(el);
     }
     api.sound.card();
@@ -318,14 +382,45 @@ export function createBlackjack(api) {
   function paintHandTotal(hand) {
     const el = document.getElementById(`total-${hand.id}`);
     if (!el) return;
-    const v = handValue(hand.cards);
-    const bj = isBlackjack(hand.cards, hand.fromSplit);
-    el.textContent = bj ? 'BJ' : String(v.total);
-    el.className = `bj-badge bj-hand-total${v.bust ? ' is-bust' : ''}${bj ? ' is-bj' : ''}${
-      v.soft && !v.bust && !bj ? ' is-soft' : ''}`;
-    el.title = v.soft && !bj ? `Weiche ${v.total} – das Ass kann auch 1 zählen` : '';
+
+    // Solange eine Karte verdeckt liegt, zeigt die Anzeige nur, was man sieht.
+    if (hand.hidden.size) {
+      const open = hand.cards.filter((_, i) => !hand.hidden.has(i));
+      el.textContent = `${handValue(open).total} + ?`;
+      el.className = 'bj-badge bj-hand-total is-veiled';
+      el.title = 'Die verdeckte Karte wird am Ende der Runde aufgedeckt.';
+    } else {
+      const v = handValue(hand.cards);
+      const bj = isBlackjack(hand.cards, hand.fromSplit);
+      el.textContent = bj ? 'BJ' : String(v.total);
+      el.className = `bj-badge bj-hand-total${v.bust ? ' is-bust' : ''}${bj ? ' is-bj' : ''}${
+        v.soft && !v.bust && !bj ? ' is-soft' : ''}`;
+      el.title = v.soft && !bj ? `Weiche ${v.total} – das Ass kann auch 1 zählen` : '';
+    }
+
     const betEl = document.getElementById(`bet-${hand.id}`);
     if (betEl) betEl.textContent = money(hand.bet);
+  }
+
+  /**
+   * Deckt alle verdeckt gelegten Double-Down-Karten auf. Die Karten selbst
+   * ändern sich dabei nicht – sie standen seit dem Austeilen fest.
+   */
+  async function revealHiddenCards() {
+    const withHidden = state.hands.filter((h) => h.hidden.size);
+    if (!withHidden.length) return;
+    for (const hand of withHidden) {
+      for (const index of [...hand.hidden]) {
+        flipCardElement(hand.els[index], hand.cards[index]);
+        api.sound.flip();
+        await wait(Math.max(120, speed().flip * 0.6));
+      }
+      hand.hidden.clear();
+      paintHandTotal(hand);
+      const v = handValue(hand.cards);
+      if (v.bust) { markSeat(hand, 'bust'); api.sound.bust(); }
+    }
+    await wait(step() * 0.6);
   }
 
   function paintDealerTotal() {
@@ -358,12 +453,11 @@ export function createBlackjack(api) {
     state.holeHidden = false;
     const el = state.dealerEls[1];
     if (el) {
-      el.classList.remove('is-down');
-      el.setAttribute('aria-label', cardLabel(state.dealer[1]));
+      flipCardElement(el, state.dealer[1]);
       api.sound.flip();
     }
     paintDealerTotal();
-    await wait(step() * 1.6);
+    await wait(step() * 1.2);
   }
 
   /* ================================================================ */
@@ -380,7 +474,7 @@ export function createBlackjack(api) {
     if (shoeEl) shoeEl.classList.add('is-shuffling');
     api.sound.shuffle();
     if (announce) api.toast('Neuer Schuh – die Karten werden gemischt.');
-    await wait(1100);
+    await wait(Math.max(750, Math.min(2000, step() * 2.2)));
     if (shoeEl) shoeEl.classList.remove('is-shuffling');
   }
 
@@ -432,7 +526,7 @@ export function createBlackjack(api) {
       await wait(step());
     }
     addCardToDealer(drawCard(), true);
-    await wait(step() * 1.4);
+    await wait(step() * 1.2);
 
     // Dealer prüft bei Ass oder Zehnerkarte sofort auf Blackjack
     if (dealerShouldPeek(state.dealer[0]) && isBlackjack(state.dealer)) {
@@ -514,11 +608,11 @@ export function createBlackjack(api) {
       hand.done = true;
       markSeat(hand, 'bust');
       api.sound.bust();
-      await wait(step() * 2);
+      await wait(step() * 1.3);
       advance();
     } else if (v.total === 21) {
       hand.done = true;
-      await wait(step() * 1.6);
+      await wait(step() * 1.1);
       advance();
     }
   }
@@ -532,21 +626,69 @@ export function createBlackjack(api) {
     advance();
   }
 
+  /**
+   * Fragt, wie die zusätzliche Karte liegen soll.
+   * @returns {Promise<'up'|'down'|null>} null = abgebrochen
+   */
+  function askDoubleMode() {
+    return new Promise((resolve) => {
+      const modal = $('#bj-double-modal');
+      if (!modal) { resolve('up'); return; }
+
+      const close = (value) => {
+        modal.hidden = true;
+        document.removeEventListener('keydown', onKey);
+        resolve(value);
+      };
+      const onKey = (e) => { if (e.key === 'Escape') close(null); };
+
+      $('#bj-double-up').onclick = () => close('up');
+      $('#bj-double-down').onclick = () => close('down');
+      $('#bj-double-cancel').onclick = () => close(null);
+      document.addEventListener('keydown', onKey);
+
+      $('#bj-double-stake').textContent = money(activeHand()?.bet ?? 0);
+      modal.hidden = false;
+      $('#bj-double-up').focus({ preventScroll: true });
+    });
+  }
+
+  /**
+   * Verdoppeln: Einsatz verdoppeln, genau eine weitere Karte, Hand beendet.
+   * Neu davor: die Auswahl, ob diese Karte offen oder verdeckt liegt. Die
+   * Auswahl ändert ausschließlich die Darstellung.
+   */
   async function double() {
     if (!canDouble()) return;
+
+    const mode = await askDoubleMode();
+    if (!mode) return;               // abgebrochen – nichts ist passiert
+    if (!canDouble()) return;        // Sicherheitsnetz, falls sich etwas änderte
+
     const hand = activeHand();
     api.spend(hand.bet);
-    state.staked += hand.bet;      // zählt zum Gesamteinsatz der Runde
+    state.staked += hand.bet;        // zählt zum Gesamteinsatz der Runde
     hand.bet *= 2;
     hand.doubled = true;
     api.paintBalance();
     markSeat(hand, 'doubled');
-    addCardToHand(hand, drawCard(), true);
+    render();
+    await wait(Math.round(step() * 0.4));
+
+    // Die Karte wird JETZT gezogen und steht damit fest – auch dann, wenn sie
+    // verdeckt gelegt wird. Beim Aufdecken wird nichts neu bestimmt.
+    addCardToHand(hand, drawCard(), { sideways: true, faceDown: mode === 'down' });
     hand.done = true;
     render();
-    const v = handValue(hand.cards);
-    if (v.bust) { markSeat(hand, 'bust'); api.sound.bust(); }
-    await wait(step() * 2);
+
+    if (mode === 'down') {
+      api.toast('Die Karte bleibt verdeckt bis zur Auswertung.');
+    } else if (handValue(hand.cards).bust) {
+      markSeat(hand, 'bust');
+      api.sound.bust();
+    }
+
+    await wait(step() * 1.2);
     advance();
   }
 
@@ -573,6 +715,9 @@ export function createBlackjack(api) {
     // die verschobene Karte wandert mit in den neuen Sitzplatz
     const target = document.getElementById(`cards-${extra.id}`);
     if (target && movedEl) target.appendChild(movedEl);
+    const source = document.getElementById(`cards-${hand.id}`);
+    if (source) fitCards(source, hand);
+    if (target) fitCards(target, extra);
     renumberSeats();
     paintHandTotal(hand);
     paintHandTotal(extra);
@@ -592,7 +737,7 @@ export function createBlackjack(api) {
       extra.splitAces = true;
       hand.done = true;
       extra.done = true;
-      await wait(step() * 1.6);
+      await wait(step() * 1.2);
       advance();
       return;
     }
@@ -601,7 +746,7 @@ export function createBlackjack(api) {
     if (handValue(extra.cards).total === 21) extra.done = true;
     if (handValue(hand.cards).total === 21) {
       hand.done = true;
-      await wait(step() * 1.4);
+      await wait(step() * 1.1);
       advance();
       return;
     }
@@ -617,6 +762,8 @@ export function createBlackjack(api) {
     render();
     await wait(step());
     await revealHole();
+    // Jetzt werden die verdeckt gelegten Double-Down-Karten umgedreht.
+    await revealHiddenCards();
 
     const alive = state.hands.some((h) => !handValue(h.cards).bust);
     if (alive) {
@@ -636,6 +783,9 @@ export function createBlackjack(api) {
   }
 
   async function settle() {
+    // Falls noch etwas verdeckt liegt (z. B. Dealer-Blackjack direkt nach dem
+    // Geben): spätestens jetzt wird alles aufgedeckt.
+    await revealHiddenCards();
     state.phase = 'payout';
     const stats = api.gameStats('blackjack', STAT_DEFAULTS);
 
@@ -735,6 +885,24 @@ export function createBlackjack(api) {
   /* ================================================================ */
   /* Anzeige                                                           */
   /* ================================================================ */
+
+  /** Klappt die Bilanz auf oder zu und merkt sich den Zustand. */
+  function setStatsOpen(open, remember = true) {
+    const wrap = $('#bj-stats-wrap');
+    const toggle = $('#bj-stats-toggle');
+    if (!wrap || !toggle) return;
+    wrap.classList.toggle('is-open', open);
+    toggle.classList.toggle('is-open', open);
+    toggle.setAttribute('aria-expanded', String(open));
+    wrap.setAttribute('aria-hidden', String(!open));
+    if (remember && api.setPref) api.setPref('bjStatsOpen', open);
+  }
+
+  function toggleStats() {
+    const open = $('#bj-stats-toggle')?.getAttribute('aria-expanded') !== 'true';
+    setStatsOpen(open);
+    api.sound.chip();
+  }
 
   function renderStats() {
     const host = $('#bj-stats');
@@ -857,6 +1025,10 @@ export function createBlackjack(api) {
     buildSpots();
     paintShoe();
     paintDealerTotal();
+    applySpeed();
+    // Die Bilanz startet zugeklappt, damit der Tisch möglichst viel Platz hat.
+    setStatsOpen(api.getPref ? Boolean(api.getPref('bjStatsOpen', false)) : false, false);
+    $('#bj-stats-toggle')?.addEventListener('click', toggleStats);
     $('#bj-deal').addEventListener('click', deal);
     $('#bj-clear').addEventListener('click', clearAllSpots);
     $('#bj-repeat').addEventListener('click', repeatBets);
@@ -873,7 +1045,9 @@ export function createBlackjack(api) {
 
   return {
     init,
-    render() { render(); renderStats(); },
+    render() { applySpeed(); render(); renderStats(); },
+    /** Wird gerufen, wenn in den Einstellungen ein anderes Tempo gewählt wird. */
+    refreshSpeed: applySpeed,
     isLive,
 
     /** Bricht eine laufende Runde ab – die Einsätze sind dann verloren. */
@@ -912,9 +1086,14 @@ export function createBlackjack(api) {
         total: handValue(h.cards).total,
         bust: handValue(h.cards).bust,
         blackjack: isBlackjack(h.cards, h.fromSplit),
+        hidden: [...h.hidden],
         result: h.result
       })),
-      can: { hit: canHit(), double: canDouble(), split: canSplit(), deal: canDeal() }
+      can: { hit: canHit(), double: canDouble(), split: canSplit(), deal: canDeal() },
+      maxHands: MAX_HANDS,
+      speed: speed().id,
+      hiddenCards: state.hands.reduce((a, h) => a + h.hidden.size, 0),
+      statsOpen: $('#bj-stats-toggle')?.getAttribute('aria-expanded') === 'true'
     }),
 
     /** Nur für Tests: erzwingt ein Neumischen des Schuhs. */

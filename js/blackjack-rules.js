@@ -12,14 +12,14 @@
  *   · Blackjack zahlt 2,5× · normaler Gewinn 2,0× · Push: Einsatz zurück
  *   · Double auf die ersten beiden Karten, danach genau eine Karte
  *   · Split bei gleichem Kartenwert, geteilte Asse bekommen genau eine Karte
- *   · höchstens 5 Hände gleichzeitig
+ *   · höchstens 3 Hände gleichzeitig (Startplätze und Splits zusammen)
  */
 
 export const SUITS = ['♠', '♥', '♦', '♣'];
 export const RANKS = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
 
 export const DECK_COUNT = 6;
-export const MAX_HANDS = 5;
+export const MAX_HANDS = 3;
 
 /** Auszahlungen als Vielfaches des Einsatzes (Einsatz ist enthalten). */
 export const PAYOUT = { blackjack: 2.5, win: 2, push: 1, lose: 0 };

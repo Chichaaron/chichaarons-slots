@@ -496,7 +496,14 @@ export const store = {
 /* Einstellungen (rein lokal, kein Personenbezug)                      */
 /* ------------------------------------------------------------------ */
 
-export const defaultSettings = { sound: true, volume: 70, speed: 'normal', confirmBets: false };
+export const defaultSettings = {
+  sound: true,
+  volume: 70,
+  speed: 'normal',        // Tempo der Roulette-Animation
+  cardSpeed: 'normal',    // Tempo der Blackjack-Kartenanimation
+  bjStatsOpen: false,     // Blackjack-Bilanz aufgeklappt?
+  confirmBets: false
+};
 
 export function loadSettings() {
   try {

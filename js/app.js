@@ -17,7 +17,7 @@ import { GAMES, THEMES, DEFAULT_THEME, themeById, safeThemeId } from './catalog.
 import { buildBoard, renderBoardChips, highlightWinner, clearHighlight, renderLastNumbers } from './table.js';
 import { createWheel } from './wheel.js';
 import { createMines } from './mines.js';
-import { createBlackjack } from './blackjack.js';
+import { createBlackjack, CARD_SPEEDS, cardSpeedById } from './blackjack.js';
 import { BONUSES, bonusById, bonusStatus, nextAvailableAt, formatDuration } from './bonus.js';
 import { validateGamertag, MAX_LENGTH as TAG_MAX } from './gamertag.js';
 import { sound } from './sound.js';
@@ -1012,6 +1012,9 @@ function applySettings() {
   $('#set-speed').value = state.settings.speed;
   $('#set-volume').value = String(volumePercent());
   $('#set-volume-value').textContent = `${volumePercent()} %`;
+  state.settings.cardSpeed = cardSpeedId();
+  paintCardSpeed();
+  state.blackjack?.refreshSpeed();
 }
 
 /** Lautstärke als ganze Prozent, immer innerhalb 0…100. */
@@ -1020,9 +1023,58 @@ function volumePercent() {
   return Number.isFinite(v) ? Math.min(100, Math.max(0, Math.round(v))) : 70;
 }
 
-/** Grundtempo der Kartenanimationen – richtet sich nach dem Animationstempo. */
-function animationPace() {
-  return { fast: 130, normal: 210, cinematic: 330 }[state.settings.speed] || 210;
+/** Gewählte Kartengeschwindigkeit für Blackjack (immer eine gültige Stufe). */
+function cardSpeedId() {
+  return cardSpeedById(state.settings.cardSpeed).id;
+}
+
+/**
+ * Kleine Merker für die Oberfläche (z. B. ob die Blackjack-Bilanz offen ist).
+ * Landen in denselben lokalen Einstellungen wie Sound und Tempo.
+ */
+function getPref(key, fallback = null) {
+  const value = state.settings[key];
+  return value === undefined ? fallback : value;
+}
+
+function setPref(key, value) {
+  state.settings[key] = value;
+  saveSettings(state.settings);
+}
+
+/** Baut die vier Auswahlknöpfe für die Kartengeschwindigkeit. */
+function buildCardSpeedOptions() {
+  const host = $('#set-card-speed');
+  if (!host) return;
+  host.innerHTML = '';
+  for (const option of CARD_SPEEDS) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'speed-option';
+    btn.dataset.speed = option.id;
+    btn.setAttribute('role', 'radio');
+    btn.innerHTML = `<b>${option.label}</b><small>${option.hint}</small>`;
+    btn.onclick = () => selectCardSpeed(option.id);
+    host.appendChild(btn);
+  }
+  paintCardSpeed();
+}
+
+function paintCardSpeed() {
+  const active = cardSpeedId();
+  for (const btn of $$('#set-card-speed .speed-option')) {
+    const on = btn.dataset.speed === active;
+    btn.classList.toggle('is-active', on);
+    btn.setAttribute('aria-checked', String(on));
+  }
+}
+
+function selectCardSpeed(id) {
+  state.settings.cardSpeed = cardSpeedById(id).id;
+  saveSettings(state.settings);
+  paintCardSpeed();
+  state.blackjack?.refreshSpeed();
+  sound.card();
 }
 
 /* ==================================================================== */
@@ -1063,11 +1115,14 @@ async function boot() {
     recordRound,
     gameStats,
     toast,
-    pace: animationPace,
+    cardSpeed: cardSpeedId,
+    getPref,
+    setPref,
     sound
   });
   state.blackjack.init();
 
+  buildCardSpeedOptions();
   applySettings();
 
   // Navigation
