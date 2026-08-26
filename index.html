@@ -389,6 +389,98 @@
   </main>
 </section>
 
+<!-- ===================== Crash ===================== -->
+<section id="screen-crash" class="screen" hidden>
+  <header class="topbar">
+    <button class="icon-btn" data-nav="games" title="Zurück zur Spielauswahl">‹ Spiele</button>
+    <div class="topbar-brand">
+      <span class="brand-mark brand-mark-sm" aria-hidden="true"></span>
+      <span>CRASH</span>
+    </div>
+    <div class="topbar-right">
+      <div class="stat stat-balance">
+        <span class="stat-label">Guthaben</span>
+        <strong class="stat-value" data-balance>—</strong>
+      </div>
+    </div>
+  </header>
+
+  <main class="crash-layout">
+    <!-- Einsatz und Bilanz -->
+    <aside class="crash-panel" id="crash-panel">
+      <section class="crash-step">
+        <h2 class="crash-step-title"><span class="crash-step-no">1</span> Einsatz</h2>
+        <div class="chips crash-chips" id="crash-chips"><!-- aus js/crash.js --></div>
+        <div class="chip-custom crash-custom-row">
+          <label for="crash-custom" class="sr-only">Eigener Einsatz</label>
+          <input id="crash-custom" type="number" min="1" step="1" placeholder="Eigener Betrag" inputmode="numeric" />
+          <button class="btn btn-ghost btn-sm" id="crash-custom-btn" type="button">Setzen</button>
+        </div>
+        <p class="crash-bet-line">Gewählter Einsatz: <b data-crash-bet>—</b></p>
+      </section>
+
+      <section class="crash-step">
+        <h2 class="crash-step-title"><span class="crash-step-no">2</span> So läuft's</h2>
+        <p class="crash-step-text">
+          Nach dem Start klettert der Multiplikator immer schneller nach oben.
+          Zahle aus, bevor die Kurve abstürzt – der Crash kann jederzeit kommen,
+          schon bei 1,00×.
+        </p>
+      </section>
+
+      <section class="crash-step crash-stats-step">
+        <button class="crash-stats-toggle" id="crash-stats-toggle" type="button"
+                aria-expanded="false" aria-controls="crash-stats-wrap">
+          <span class="crash-step-title">Deine Crash-Bilanz</span>
+          <span class="crash-caret" aria-hidden="true">▾</span>
+        </button>
+        <div class="crash-stats-wrap" id="crash-stats-wrap" aria-hidden="true">
+          <div class="crash-stats-inner">
+            <div class="crash-stats" id="crash-stats"><!-- aus js/crash.js --></div>
+          </div>
+        </div>
+      </section>
+    </aside>
+
+    <!-- Graph und Steuerung -->
+    <section class="crash-stage" id="crash-stage">
+      <div class="crash-recent-row">
+        <span class="crash-recent-label">Letzte Runden</span>
+        <div class="crash-recent" id="crash-recent"><!-- aus js/crash.js --></div>
+      </div>
+
+      <div class="crash-graph">
+        <canvas id="crash-canvas" aria-label="Verlauf des Multiplikators"></canvas>
+        <div class="crash-overlay" aria-live="polite">
+          <output class="crash-mult" id="crash-mult">1,00×</output>
+          <p class="crash-sub" id="crash-sub">Einsatz wählen und starten</p>
+        </div>
+      </div>
+
+      <div class="crash-live">
+        <div class="crash-live-item">
+          <span class="stat-label">Einsatz</span>
+          <strong class="stat-value" data-crash-bet>—</strong>
+        </div>
+        <div class="crash-live-item">
+          <span class="stat-label">Mögliche Auszahlung</span>
+          <strong class="stat-value" id="crash-payout">—</strong>
+        </div>
+      </div>
+
+      <div class="crash-result" id="crash-result" hidden></div>
+
+      <div class="crash-actions">
+        <button class="btn btn-gold btn-lg btn-block" id="crash-start" type="button" disabled>SPIELEN</button>
+        <button class="btn btn-gold btn-lg btn-block crash-cash" id="crash-cash" type="button" hidden>
+          <span>AUSZAHLEN</span><small>—</small>
+        </button>
+      </div>
+      <p class="crash-hint" id="crash-hint">—</p>
+    </section>
+  </main>
+</section>
+
 <!-- ===================== Shop ===================== -->
 <section id="screen-shop" class="screen" hidden>
   <div class="page-card">
@@ -404,6 +496,7 @@
     <p class="page-lead">
       Hol dir regelmäßig virtuelles Guthaben. Die Zeiten laufen serverseitig –
       Neuladen, Gerätewechsel oder eine verstellte Uhr ändern nichts daran.
+      Das Notfallguthaben gibt es nur, wenn dein Konto wirklich leer ist.
     </p>
     <div class="bonus-grid" id="bonus-grid"><!-- aus js/bonus.js --></div>
 
