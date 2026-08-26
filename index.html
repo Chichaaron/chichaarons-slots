@@ -77,7 +77,7 @@
     <div class="menu-balance">
       <span class="menu-balance-label">Guthaben</span>
       <strong class="menu-balance-value" data-balance>—</strong>
-      <span class="menu-user">Angemeldet als <b data-username>—</b></span>
+      <span class="menu-user">Angemeldet als <b data-username>—</b><button class="linkish menu-user-cta" id="menu-gamertag-cta" type="button" hidden>Gamertag erstellen</button></span>
     </div>
 
     <nav class="menu-nav">
@@ -86,8 +86,8 @@
         <span class="menu-btn-sub">Verschiedene Minigames</span>
       </button>
       <button class="menu-btn" data-nav="shop">
-        <span class="menu-btn-title">Shop<span class="menu-badge" id="menu-shop-badge" hidden>Bonus bereit</span></span>
-        <span class="menu-btn-sub">Täglicher Bonus &amp; Designs</span>
+        <span class="menu-btn-title">Shop<span class="bonus-dot" id="menu-shop-badge" title="Im Shop wartet ein Bonus" hidden></span></span>
+        <span class="menu-btn-sub">Boni abholen &amp; Designs</span>
       </button>
       <button class="menu-btn" data-nav="settings">
         <span class="menu-btn-title">Einstellungen</span>
@@ -276,6 +276,8 @@
         </div>
       </div>
 
+      <p class="mines-next" id="mines-next" hidden>—</p>
+
       <div class="mines-grid is-empty" id="mines-grid"><!-- aus js/mines.js --></div>
 
       <div class="mines-result" id="mines-result" hidden></div>
@@ -301,21 +303,12 @@
         <strong class="stat-value" data-balance>—</strong>
       </div>
     </header>
-    <!-- Gratis-Bonus: alle X Minuten abholbar -->
-    <article class="bonus-card">
-      <div class="bonus-head">
-        <span class="bonus-coin" aria-hidden="true">€</span>
-        <div class="bonus-text">
-          <h2 class="bonus-title">Gratis-Bonus</h2>
-          <p class="bonus-sub" id="bonus-sub">—</p>
-        </div>
-        <strong class="bonus-amount" id="bonus-amount">—</strong>
-      </div>
-      <div class="bonus-bar" role="progressbar" aria-labelledby="bonus-title">
-        <span id="bonus-bar-fill"></span>
-      </div>
-      <button class="btn btn-gold btn-block" id="btn-bonus" type="button">Jetzt abholen</button>
-    </article>
+    <h2 class="shop-heading">Boni</h2>
+    <p class="page-lead">
+      Hol dir regelmäßig virtuelles Guthaben. Die Zeiten laufen serverseitig –
+      Neuladen, Gerätewechsel oder eine verstellte Uhr ändern nichts daran.
+    </p>
+    <div class="bonus-grid" id="bonus-grid"><!-- aus js/bonus.js --></div>
 
     <h2 class="shop-heading">Designs</h2>
     <p class="page-lead">
@@ -334,6 +327,23 @@
       <button class="icon-btn" data-nav="menu">‹ Menü</button>
       <h1>Einstellungen</h1>
     </header>
+
+    <div class="setting-row setting-row-block">
+      <div class="setting-head">
+        <div>
+          <h3>Gamertag</h3>
+          <p>So sehen dich andere. Aktuell: <b id="settings-gamertag">—</b></p>
+        </div>
+      </div>
+      <form class="gamertag-form" id="gamertag-form">
+        <label for="gamertag-input" class="sr-only">Neuer Gamertag</label>
+        <input id="gamertag-input" type="text" maxlength="22" placeholder="z. B. Chichaaron"
+               autocomplete="off" spellcheck="false" />
+        <button class="btn btn-gold btn-sm" id="gamertag-save" type="submit">Speichern</button>
+      </form>
+      <p class="gamertag-msg" id="gamertag-msg" hidden></p>
+      <p class="gamertag-hint">3–22 Zeichen. Buchstaben, Zahlen, Leerzeichen und übliche Sonderzeichen sind erlaubt.</p>
+    </div>
 
     <div class="setting-row">
       <div>
