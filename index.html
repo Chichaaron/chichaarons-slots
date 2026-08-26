@@ -323,7 +323,7 @@
 
       <section class="bj-step">
         <h2 class="bj-step-title"><span class="bj-step-no">2</span> Plätze</h2>
-        <p class="bj-step-text">Tippe auf einen Platz, um den Jeton dort abzulegen. Bis zu fünf Hände gleichzeitig.</p>
+        <p class="bj-step-text">Tippe auf einen Platz, um den Jeton dort abzulegen. Bis zu drei Hände gleichzeitig.</p>
         <div class="bj-bet-actions">
           <button class="btn btn-ghost btn-sm" id="bj-repeat" type="button" disabled>Wiederholen</button>
           <button class="btn btn-ghost btn-sm" id="bj-clear" type="button" disabled>Löschen</button>
@@ -335,8 +335,16 @@
       <p class="bj-hint" id="bj-hint">—</p>
 
       <section class="bj-step bj-stats-step">
-        <h2 class="bj-step-title">Deine Blackjack-Bilanz</h2>
-        <div class="bj-stats" id="bj-stats"><!-- aus js/blackjack.js --></div>
+        <button class="bj-stats-toggle" id="bj-stats-toggle" type="button"
+                aria-expanded="false" aria-controls="bj-stats-wrap">
+          <span class="bj-step-title">Deine Blackjack-Bilanz</span>
+          <span class="bj-caret" aria-hidden="true">▾</span>
+        </button>
+        <div class="bj-stats-wrap" id="bj-stats-wrap" aria-hidden="true">
+          <div class="bj-stats-inner">
+            <div class="bj-stats" id="bj-stats"><!-- aus js/blackjack.js --></div>
+          </div>
+        </div>
       </section>
     </aside>
 
@@ -440,6 +448,18 @@
         <p>Dezente Klicks beim Setzen, beim Lauf der Kugel und beim Geben der Karten.</p>
       </div>
       <label class="switch"><input type="checkbox" id="set-sound" /><span></span></label>
+    </div>
+
+    <div class="setting-row setting-row-block">
+      <div class="setting-head">
+        <div>
+          <h3>Kartengeschwindigkeit</h3>
+          <p>Wie schnell die Karten beim Blackjack ausgeteilt werden. Ändert nur
+             die Darstellung – nie, welche Karte kommt.</p>
+        </div>
+      </div>
+      <div class="speed-options" id="set-card-speed" role="radiogroup"
+           aria-label="Kartengeschwindigkeit"><!-- aus js/app.js --></div>
     </div>
 
     <div class="setting-row">
@@ -591,6 +611,38 @@
     <div class="summary-actions">
       <button class="btn btn-ghost" id="confirm-no" type="button">Abbrechen</button>
       <button class="btn btn-danger" id="confirm-yes" type="button">Ja, löschen</button>
+    </div>
+  </div>
+</div>
+
+<!-- Verdoppeln: offen oder verdeckt? -->
+<div class="modal" id="bj-double-modal" hidden>
+  <div class="modal-card modal-sm bj-double-card" role="dialog" aria-modal="true"
+       aria-labelledby="bj-double-title">
+    <h2 id="bj-double-title">Verdoppeln</h2>
+    <p>
+      Dein Einsatz steigt auf <b id="bj-double-stake">—</b> und du bekommst
+      genau eine weitere Karte. Danach ist die Hand beendet.
+      Wie soll die Karte liegen?
+    </p>
+    <div class="bj-double-choices">
+      <button class="bj-double-choice" id="bj-double-up" type="button">
+        <span class="bj-double-preview is-up" aria-hidden="true"></span>
+        <b>OFFEN</b>
+        <small>Karte sofort sichtbar</small>
+      </button>
+      <button class="bj-double-choice" id="bj-double-down" type="button">
+        <span class="bj-double-preview is-down" aria-hidden="true"></span>
+        <b>VERDECKT</b>
+        <small>Wird erst am Ende aufgedeckt</small>
+      </button>
+    </div>
+    <p class="bj-double-note">
+      Die Karte steht in beiden Fällen sofort fest – verdeckt heißt nur,
+      dass du sie später siehst.
+    </p>
+    <div class="summary-actions">
+      <button class="btn btn-ghost btn-sm" id="bj-double-cancel" type="button">Abbrechen</button>
     </div>
   </div>
 </div>
