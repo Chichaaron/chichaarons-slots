@@ -1354,13 +1354,85 @@ button, input, select { font: inherit; color: inherit; }
   background: linear-gradient(180deg, var(--gold-bright), var(--gold));
 }
 .bj-step-text { font-size: 12px; color: var(--muted); line-height: 1.5; }
-.bj-chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-start; }
+.bj-chips {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px; justify-items: center;
+}
+/* Die Blackjack-Jetons sind bewusst größer als die am Roulettetisch –
+   dort wird auf viele kleine Felder gesetzt, hier auf wenige große Hände. */
+.bj-chips .chip {
+  width: 100%; max-width: 66px; height: auto; aspect-ratio: 1;
+  font-size: 12px; font-weight: 800; letter-spacing: .01em;
+  border-width: 2.5px;
+  transition: transform .18s cubic-bezier(.2, .9, .3, 1.2), box-shadow .18s, border-color .18s;
+}
+.bj-chips .chip:hover:not(:disabled) { transform: translateY(-3px) scale(1.04); }
+.bj-chips .chip.is-active {
+  transform: translateY(-4px) scale(1.06);
+  border-color: var(--edge-hi);
+  box-shadow: 0 0 0 3px var(--edge-glow), 0 10px 20px rgba(0, 0, 0, .45),
+              inset 0 0 0 3px var(--sheen);
+  animation: bj-chip-pop .28s cubic-bezier(.2, .9, .3, 1.3);
+}
+@keyframes bj-chip-pop {
+  0% { transform: translateY(-1px) scale(.97); }
+  60% { transform: translateY(-6px) scale(1.11); }
+  100% { transform: translateY(-4px) scale(1.06); }
+}
+.bj-chips .chip-max {
+  grid-column: span 4; width: 100%; max-width: none;
+  aspect-ratio: auto; min-height: 54px; border-radius: 999px;
+  display: grid; place-items: center; gap: 1px;
+}
+.bj-chips .chip-max b { font-size: 14px; letter-spacing: .16em; }
+.bj-chips .chip-max small { font-size: 11px; opacity: .85; }
+
 .bj-custom-row { display: flex; gap: 8px; }
-.bj-custom-row input { flex: 1; min-width: 0; }
-.bj-bet-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.bj-bet-line { font-size: 13px; color: var(--muted); }
-.bj-bet-line b { color: var(--accent-text); font-size: 15px; }
+.bj-custom-row input { flex: 1; min-width: 0; height: 42px; font-size: 14px; }
+.bj-custom-row .btn { height: 42px; padding-inline: 16px; }
+.bj-bet-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.bj-bet-actions .btn { height: 40px; }
+
+/* Gesamteinsatz: die wichtigste Zahl der Setzphase */
+.bj-bet-line {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted);
+  padding: 11px 14px; border-radius: 12px;
+  border: 1.5px solid var(--gold-line-hi); background: var(--sunken);
+}
+.bj-bet-line b {
+  color: var(--accent-text); font-size: 19px; letter-spacing: 0;
+  font-variant-numeric: tabular-nums; text-transform: none;
+}
 .bj-hint { font-size: 12px; color: var(--muted); text-align: center; min-height: 1.2em; }
+
+/* Bilanz: standardmäßig zugeklappt, damit der Tisch den Platz bekommt */
+.bj-stats-step { gap: 0; }
+.bj-stats-toggle {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  width: 100%; padding: 10px 12px; cursor: pointer; text-align: left;
+  border-radius: 11px; border: 1.5px solid var(--edge);
+  background: var(--surface); color: inherit;
+  transition: border-color .18s, background .18s;
+}
+.bj-stats-toggle:hover { border-color: var(--edge-hi); background: var(--surface-hi); }
+.bj-stats-toggle:focus-visible { outline: 2px solid var(--edge-hi); outline-offset: 2px; }
+.bj-stats-toggle .bj-step-title { margin: 0; }
+.bj-caret {
+  color: var(--gold); font-size: 13px; line-height: 1;
+  transition: transform .28s cubic-bezier(.4, 0, .2, 1);
+}
+.bj-stats-toggle.is-open .bj-caret { transform: rotate(180deg); }
+
+/* Auf- und Zuklappen ohne feste Höhe – 0fr auf 1fr blendet sauber über */
+.bj-stats-wrap {
+  display: grid; grid-template-rows: 0fr;
+  transition: grid-template-rows .3s cubic-bezier(.4, 0, .2, 1), opacity .2s;
+  opacity: 0;
+}
+.bj-stats-wrap.is-open { grid-template-rows: 1fr; opacity: 1; }
+.bj-stats-inner { overflow: hidden; min-height: 0; }
+.bj-stats-wrap.is-open .bj-stats-inner { padding-top: 10px; }
 
 .bj-stats { display: grid; gap: 5px; }
 .bj-stats div {
@@ -1372,7 +1444,7 @@ button, input, select { font: inherit; color: inherit; }
 .bj-stats b { color: var(--text); font-variant-numeric: tabular-nums; }
 
 /* --- Tisch --- */
-.bj-table { display: grid; gap: 16px; justify-items: center; }
+.bj-table { display: grid; gap: clamp(18px, 2.6vw, 30px); justify-items: center; }
 .bj-felt {
   position: relative; width: 100%; min-height: 470px;
   display: grid; gap: 12px; align-content: start;
@@ -1449,14 +1521,17 @@ button, input, select { font: inherit; color: inherit; }
 
 /* --- Plätze und Hände --- */
 .bj-seats {
-  display: grid; gap: clamp(6px, 1.4vw, 16px); align-items: start; justify-content: center;
-  grid-template-columns: repeat(var(--seats, 5), minmax(0, 1fr));
+  display: grid; gap: clamp(18px, 3.4vw, 46px); align-items: start; justify-content: center;
+  grid-template-columns: repeat(var(--seats, 3), minmax(0, 1fr));
   /* wächst mit der Zahl der Hände, bleibt aber immer mittig und im Rahmen */
-  width: min(100%, calc(var(--seats, 5) * 196px));
+  width: min(100%, calc(var(--seats, 3) * 300px));
   margin-inline: auto;
-  min-height: 168px;
+  min-height: 186px;
 }
-.bj-seats.is-betting { grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: center; }
+.bj-seats.is-betting {
+  grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: center;
+  gap: clamp(16px, 4vw, 60px);
+}
 
 .bj-spot { display: grid; gap: 6px; justify-items: center; position: relative; }
 .bj-spot-btn {
@@ -1538,25 +1613,48 @@ button, input, select { font: inherit; color: inherit; }
   background: linear-gradient(180deg, var(--gold-bright), var(--gold));
 }
 .bj-badge.is-soft::after { content: '·s'; font-size: 9px; opacity: .7; }
+.bj-badge.is-veiled { border-style: dashed; border-color: var(--gold); color: var(--accent-text); }
 
 /* --- Karten --- */
+/* --overlap steuert, wie stark sich die Karten einer Hand überdecken,
+   --card-w die Kartenbreite (beides an einer Stelle, damit die quer
+   gelegte Double-Karte den passenden Platz bekommt) */
 .bj-hand-cards {
+  /* --n = Anzahl der Karten (setzt js/blackjack.js). Passen sie in voller
+     Größe nicht mehr nebeneinander, werden sie gleichmäßig kleiner, statt
+     in die Nachbarhand zu ragen. */
+  --n: 2;
+  --max-card: clamp(70px, 10.5vw, 104px);
+  --overlap: clamp(8px, 1.4vw, 16px);
+  --card-w: min(var(--max-card),
+                calc((100% + (var(--n) - 1) * var(--overlap)) / var(--n)));
   display: flex; justify-content: center; align-items: flex-start;
-  min-height: clamp(84px, 13vw, 116px);
-  padding-left: clamp(14px, 2.6vw, 24px);
+  width: 100%;
+  min-height: calc(var(--max-card) * 1.4);
+  padding-left: var(--overlap);
 }
 .bj-card {
-  width: clamp(58px, 9vw, 84px); aspect-ratio: 100 / 140; flex: none;
+  position: relative;   /* damit z-index greift */
+  width: var(--card-w); aspect-ratio: 100 / 140; flex: none;
   /* negative Werte über calc – clamp() verlangt min < max */
-  margin-left: calc(-1 * clamp(14px, 2.6vw, 24px));
-  perspective: 700px;
-  transition: transform .38s cubic-bezier(.22, .85, .3, 1), opacity .18s linear;
+  margin-left: calc(-1 * var(--overlap));
+  perspective: 900px;
+  transition: transform var(--bj-move-ms, 480ms) cubic-bezier(.22, .85, .3, 1),
+              opacity calc(var(--bj-move-ms, 480ms) * .4) linear;
 }
 .bj-card.is-dealing { transform: translate(var(--dx, 0), var(--dy, 0)) rotate(-16deg) scale(.9); opacity: 0; }
-.bj-card.is-sideways { align-self: center; rotate: 90deg; margin-left: calc(-1 * clamp(2px, 0.4vw, 6px)); }
+/* Quer gelegte Karte: die Drehung ändert den Platzbedarf im Layout nicht,
+   deshalb bekommt sie den Unterschied (Höhe minus Breite) als Rand dazu –
+   sonst ragt sie in die Nachbarhand. */
+.bj-card.is-sideways {
+  align-self: center; rotate: 90deg;
+  margin-left: calc(var(--card-w) * 0.22);
+  margin-right: calc(var(--card-w) * 0.22);
+}
 .bj-card-inner {
   position: relative; width: 100%; height: 100%;
-  transform-style: preserve-3d; transition: transform .42s cubic-bezier(.4, 0, .2, 1);
+  transform-style: preserve-3d;
+  transition: transform var(--bj-flip-ms, 430ms) cubic-bezier(.4, 0, .2, 1);
 }
 .bj-card.is-down .bj-card-inner { transform: rotateY(180deg); }
 .bj-card-face {
@@ -1566,6 +1664,7 @@ button, input, select { font: inherit; color: inherit; }
 .bj-card-front { background: var(--card-bg); overflow: hidden; }
 .bj-card-back {
   transform: rotateY(180deg);
+  display: grid; place-items: center; overflow: hidden;
   background-color: var(--card-back-1);
   background-image:
     repeating-linear-gradient(45deg, var(--card-back-2) 0 2px, transparent 2px 7px),
@@ -1573,36 +1672,34 @@ button, input, select { font: inherit; color: inherit; }
   border: 3px solid var(--card-bg);
   box-shadow: 0 5px 12px rgba(0, 0, 0, .4), inset 0 0 0 1px var(--card-back-2);
 }
+.bj-card-crest {
+  width: 46%; aspect-ratio: 1; border-radius: 50%;
+  border: 2px solid var(--card-bg);
+  background: radial-gradient(circle at 50% 35%, var(--card-back-2), transparent 70%);
+  box-shadow: inset 0 0 0 3px var(--card-back-1);
+}
+/* Verdeckt gelegte Karte beim Verdoppeln: dezent goldener Rand */
+.bj-card.is-hole.is-down .bj-card-back {
+  box-shadow: 0 5px 12px rgba(0, 0, 0, .4), 0 0 0 2px var(--gold),
+              inset 0 0 0 1px var(--card-back-2);
+}
+/* Die Farbzeichen sind Vektorpfade (js/cards.js) – nur Rang und Buchstabe
+   sind Text. Dadurch bleiben die Karten bei jeder Größe scharf. */
 .card-svg { display: block; width: 100%; height: 100%; }
 .bj-card svg text {
-  text-transform: none; font-family: 'Georgia', 'Times New Roman', serif;
-  text-anchor: middle; dominant-baseline: central;
+  text-transform: none; font-family: 'Georgia', 'Times New Roman', 'Times', serif;
+  font-weight: 700; text-anchor: middle; dominant-baseline: central;
 }
-.card-bg { fill: var(--card-bg); stroke: var(--card-edge); stroke-width: 1; }
+.card-bg { fill: var(--card-bg); stroke: var(--card-edge); stroke-width: .8; }
+.card-hairline { fill: none; stroke: var(--card-edge); stroke-width: .6; opacity: .35; }
 .card-ink { fill: var(--card-ink); }
 .card-svg.is-red .card-ink { fill: var(--card-red); }
-.card-corner-rank { font-size: 21px; font-weight: 700; }
-.card-corner-suit {
-  font-size: 17px;
-  font-family: 'DejaVu Sans', 'Arial Unicode MS', 'Segoe UI Symbol', sans-serif;
-}
-.card-pip {
-  font-size: 21px;
-  font-family: 'DejaVu Sans', 'Arial Unicode MS', 'Segoe UI Symbol', sans-serif;
-}
-.card-ace {
-  font-size: 46px;
-  font-family: 'DejaVu Sans', 'Arial Unicode MS', 'Segoe UI Symbol', sans-serif;
-}
-.card-ace-ring { fill: none; stroke: var(--card-edge); stroke-width: 1.2; }
-.card-court-frame { fill: var(--card-court); stroke: currentColor; stroke-width: 1.1; opacity: .95; }
-.card-court-frame-in { fill: none; opacity: .5; }
-.card-court-divide { stroke: currentColor; stroke-width: .8; opacity: .45; }
-.card-court-letter { font-size: 21px; font-weight: 700; letter-spacing: .02em; }
-.card-court-suit {
-  font-size: 14px;
-  font-family: 'DejaVu Sans', 'Arial Unicode MS', 'Segoe UI Symbol', sans-serif;
-}
+.card-corner-rank { font-size: 20px; }
+.card-ace-ring { fill: none; stroke: var(--card-edge); stroke-width: 1.1; opacity: .5; }
+.card-court-frame { fill: var(--card-court); stroke: currentColor; stroke-width: 1; opacity: .95; }
+.card-court-frame-in { fill: none; opacity: .45; }
+.card-court-divide { stroke: currentColor; stroke-width: .7; opacity: .4; }
+.card-court-letter { font-size: 20px; letter-spacing: .02em; }
 
 /* --- Ergebnis und Spielzüge --- */
 .bj-result {
@@ -1621,12 +1718,65 @@ button, input, select { font: inherit; color: inherit; }
 .bj-result.is-even strong, .bj-result.is-even .bj-result-net { color: var(--accent-text); }
 
 .bj-actions {
-  display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;
-  transition: opacity .2s;
+  display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;
+  transition: opacity .2s; margin-top: 4px;
 }
 .bj-actions.is-idle { opacity: .5; }
 .bj-action { min-width: 128px; letter-spacing: .1em; }
 .bj-new { min-width: 160px; }
+
+/* --- Verdoppeln: offen oder verdeckt? --- */
+.bj-double-card { max-width: 460px; }
+.bj-double-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0 10px; }
+.bj-double-choice {
+  display: grid; gap: 6px; justify-items: center; padding: 14px 10px; cursor: pointer;
+  border-radius: 14px; border: 2px solid var(--edge); background: var(--surface);
+  color: inherit; text-align: center;
+  transition: transform .16s, border-color .16s, box-shadow .16s, background .16s;
+}
+.bj-double-choice:hover {
+  transform: translateY(-2px); border-color: var(--edge-hi);
+  background: var(--surface-hi); box-shadow: 0 0 0 3px var(--edge-glow);
+}
+.bj-double-choice:focus-visible { outline: 2px solid var(--edge-hi); outline-offset: 3px; }
+.bj-double-choice b { font-size: 13px; letter-spacing: .12em; }
+.bj-double-choice small { font-size: 11px; color: var(--muted); line-height: 1.35; }
+.bj-double-preview {
+  width: 44px; height: 62px; border-radius: 6px; display: block; box-sizing: border-box;
+  border: 2px solid var(--card-edge);
+}
+.bj-double-preview.is-up {
+  background: var(--card-bg);
+  box-shadow: inset 0 0 0 2px var(--card-bg), inset 0 -12px 0 -6px var(--card-red);
+}
+.bj-double-preview.is-down {
+  background-color: var(--card-back-1);
+  background-image:
+    repeating-linear-gradient(45deg, var(--card-back-2) 0 2px, transparent 2px 6px),
+    repeating-linear-gradient(-45deg, var(--card-back-2) 0 2px, transparent 2px 6px);
+  border-color: var(--card-bg);
+}
+.bj-double-note { font-size: 11.5px; color: var(--muted); line-height: 1.45; }
+
+/* --- Kartengeschwindigkeit in den Einstellungen --- */
+.speed-options { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.speed-option {
+  display: grid; gap: 3px; padding: 11px 8px; cursor: pointer; text-align: center;
+  border-radius: 11px; border: 1.5px solid var(--edge); background: var(--surface);
+  color: inherit;
+  transition: transform .16s, border-color .16s, box-shadow .16s, background .16s;
+}
+.speed-option:hover { transform: translateY(-2px); border-color: var(--edge-hi); }
+.speed-option:focus-visible { outline: 2px solid var(--edge-hi); outline-offset: 2px; }
+.speed-option b { font-size: 10.5px; letter-spacing: .08em; line-height: 1.25; }
+.speed-option small { font-size: 10px; color: var(--muted); }
+.speed-option.is-active {
+  border-color: var(--gold);
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+  color: var(--on-gold);
+  box-shadow: 0 0 0 3px var(--edge-glow), inset 0 1px 0 var(--sheen);
+}
+.speed-option.is-active small { color: var(--on-gold); opacity: .8; }
 
 /* --- Vorschaubild im Spielhub --- */
 .game-art-blackjack { place-items: center; position: relative; }
@@ -1669,30 +1819,67 @@ button, input, select { font: inherit; color: inherit; }
 /* --- Responsive --- */
 @media (max-width: 1080px) {
   .bj-layout { grid-template-columns: 300px minmax(0, 1fr); }
+  .bj-seats { width: min(100%, calc(var(--seats, 3) * 230px)); }
 }
 @media (max-width: 900px) {
   .bj-layout { grid-template-columns: minmax(0, 1fr); }
   .bj-panel { order: 2; }
   .bj-table { order: 1; }
-  .bj-felt { min-height: 400px; }
-  .bj-dealer { padding-inline: 0; padding-top: 74px; }
-  .bj-shoe { top: 14px; right: 50%; translate: 50% 0; }
-  .bj-shoe-box { width: 40px; height: 56px; }
+  .bj-felt { min-height: 340px; }
+  /* Der Schuh rückt in die Ecke und wird flach – sonst liegt er auf dem
+     Wort "Dealer". */
+  .bj-dealer { padding-inline: 0; padding-top: 26px; }
+  .bj-shoe {
+    top: 10px; right: 10px; width: auto;
+    grid-auto-flow: column; align-items: center; gap: 7px;
+  }
+  .bj-shoe-box { width: 26px; height: 36px; border-width: 1.5px; }
+  .bj-shoe-cap { display: none; }
+  .bj-shoe-label { font-size: 9.5px; }
   .bj-result, .bj-actions { width: min(520px, 100%); }
+  .speed-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/*
+ * Auf dem Handy stehen die Hände untereinander statt nebeneinander.
+ * Drei Hände nebeneinander lassen auf 390 px Breite keine lesbaren Karten
+ * mehr zu – Lesbarkeit geht hier vor "alles auf einen Blick".
+ */
+@media (max-width: 700px) {
+  .bj-seats {
+    display: flex; flex-direction: column; align-items: stretch;
+    gap: 14px; width: 100%;
+  }
+  .bj-seats.is-betting {
+    display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: clamp(10px, 4vw, 26px);
+  }
+  .bj-seat {
+    padding: 10px 8px 8px; border-radius: 16px;
+    border-color: var(--gold-line); background: var(--sunken);
+  }
+  .bj-seat.is-active { background: var(--surface-hi); }
+  .bj-hand-cards { --overlap: 10px; --max-card: clamp(58px, 17vw, 82px); }
+}
+
 @media (max-width: 640px) {
   .bj-layout { padding: 14px 12px 28px; gap: 14px; }
-  .bj-seats { gap: 4px; }
-  .bj-seat, .bj-spot { padding-inline: 2px; }
-  .bj-hand-cards { padding-left: 12px; min-height: 76px; }
-  .bj-card { width: clamp(40px, 13vw, 62px); margin-left: -12px; }
+  .bj-spot { padding-inline: 2px; }
   .bj-action { min-width: 0; flex: 1 1 44%; letter-spacing: .04em; }
-  .bj-chips .chip { width: 38px; height: 38px; font-size: 9.5px; }
-  .bj-chips .chip-max { min-width: 70px; height: 38px; }
-  .bj-spot-label { font-size: 8.5px; letter-spacing: .04em; }
+  .bj-chips { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+  .bj-chips .chip { max-width: 62px; font-size: 11px; }
+  .bj-chips .chip-max { max-width: none; width: 100%; min-height: 50px; }
+  .bj-spot-label { font-size: 9px; letter-spacing: .04em; }
   .bj-spot-clear { translate: 34px 0; }
   .bj-rule-arc { letter-spacing: .06em; }
+  .bj-double-choices { grid-template-columns: 1fr; }
   .volume-slider { width: 110px; }
+}
+
+@media (max-width: 380px) {
+  .bj-chips { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .bj-chips .chip-max { grid-column: span 3; }
+  .speed-options { grid-template-columns: 1fr; }
 }
 
 @media (prefers-reduced-motion: reduce) {
