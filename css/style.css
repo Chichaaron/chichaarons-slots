@@ -65,6 +65,16 @@
   --mine-spike: #d9333a;
   --mine-shine: rgba(255, 255, 255, .9);
 
+  /* --- Crash-Graph (wird von js/crash.js ausgelesen) --- */
+  --crash-grid: rgba(255, 255, 255, .07);
+  --crash-axis: rgba(212, 175, 106, .35);
+  --crash-label: #7f9188;
+  --crash-line: #d4af6a;
+  --crash-line-hi: #f2ddab;
+  --crash-fill: rgba(212, 175, 106, .16);
+  --crash-ball: #f6e7c2;
+  --crash-bust: #f8717a;
+
   /* --- Spielkarten (Blackjack) --- */
   --card-bg: #fbf8f1;          /* Kartenrücken-Weiß der Vorderseite */
   --card-ink: #17181c;         /* Pik und Kreuz */
@@ -128,6 +138,13 @@
   --edge-top: rgba(255, 255, 255, .12);
   --press: rgba(0, 0, 0, .55);
 
+  --crash-grid: rgba(255, 255, 255, .06);
+  --crash-axis: rgba(198, 193, 180, .34);
+  --crash-label: #8e8d88;
+  --crash-line: #c6c1b4; --crash-line-hi: #f2efe6;
+  --crash-fill: rgba(198, 193, 180, .15);
+  --crash-ball: #f4f2ea; --crash-bust: #f4737d;
+
   --card-bg: #f6f5f1; --card-ink: #101014; --card-red: #b3242c;
   --card-court: #eceae2; --card-edge: rgba(20, 20, 24, .32);
   --card-back-1: #24242c; --card-back-2: rgba(198, 193, 180, .5);
@@ -160,6 +177,13 @@
   --edge-glow: rgba(230, 190, 115, .34);
   --edge-top: rgba(255, 235, 205, .16);
   --press: rgba(30, 4, 12, .5);
+
+  --crash-grid: rgba(255, 255, 255, .07);
+  --crash-axis: rgba(220, 179, 103, .4);
+  --crash-label: #bf9aa4;
+  --crash-line: #e2bd76; --crash-line-hi: #fbeecd;
+  --crash-fill: rgba(220, 179, 103, .17);
+  --crash-ball: #fbeecd; --crash-bust: #ff8d95;
 
   --card-bg: #fdf6e9; --card-ink: #1b1116; --card-red: #cb2f3d;
   --card-court: #f7ead1; --card-edge: rgba(45, 12, 22, .32);
@@ -199,6 +223,13 @@
   --edge-glow: rgba(140, 105, 40, .26);
   --edge-top: rgba(255, 255, 255, .8);
   --press: rgba(80, 60, 25, .3);
+
+  --crash-grid: rgba(90, 68, 26, .12);
+  --crash-axis: rgba(122, 92, 34, .45);
+  --crash-label: #7b6a51;
+  --crash-line: #9a6f22; --crash-line-hi: #c9a459;
+  --crash-fill: rgba(163, 124, 53, .16);
+  --crash-ball: #7a5c1e; --crash-bust: #a81f2a;
 
   --card-bg: #ffffff; --card-ink: #26221b; --card-red: #a81f2a;
   --card-court: #f7f0e0; --card-edge: rgba(76, 58, 24, .34);
@@ -1880,6 +1911,275 @@ button, input, select { font: inherit; color: inherit; }
   .bj-chips { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .bj-chips .chip-max { grid-column: span 3; }
   .speed-options { grid-template-columns: 1fr; }
+}
+
+/* =====================================================================
+   13 CRASH
+   Graph, laufende Kugel, Einsatzpanel. Der Canvas holt seine Farben aus
+   den --crash-… Tokens, die jedes Theme oben setzt.
+   ===================================================================== */
+
+.crash-layout {
+  flex: 1; display: grid; gap: 20px; align-items: start;
+  grid-template-columns: 330px minmax(0, 1fr);
+  padding: 20px clamp(16px, 3vw, 34px) 34px;
+  width: min(1280px, 100%); margin-inline: auto;
+}
+
+/* --- Seitenpanel --- */
+.crash-panel {
+  display: grid; gap: 20px; padding: 20px; border-radius: 18px;
+  border: 1px solid var(--gold-line);
+  background: linear-gradient(180deg, var(--panel-1), var(--panel-2));
+  box-shadow: var(--shadow-md);
+  transition: opacity .25s;
+}
+.crash-panel.is-locked { opacity: .62; }
+.crash-step { display: grid; gap: 10px; }
+.crash-step-title {
+  font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--gold);
+  display: flex; align-items: center; gap: 9px; margin: 0;
+}
+.crash-step-no {
+  width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 11px; font-weight: 800; color: var(--on-gold);
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+}
+.crash-step-text { font-size: 12.5px; color: var(--muted); line-height: 1.55; }
+
+.crash-chips {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px; justify-items: center;
+}
+.crash-chips .chip {
+  width: 100%; max-width: 66px; height: auto; aspect-ratio: 1;
+  font-size: 12px; font-weight: 800; border-width: 2.5px;
+  transition: transform .18s cubic-bezier(.2, .9, .3, 1.2), box-shadow .18s, border-color .18s;
+}
+.crash-chips .chip:hover:not(:disabled) { transform: translateY(-3px) scale(1.04); }
+.crash-chips .chip.is-active {
+  transform: translateY(-4px) scale(1.06);
+  border-color: var(--edge-hi);
+  box-shadow: 0 0 0 3px var(--edge-glow), 0 10px 20px rgba(0, 0, 0, .45),
+              inset 0 0 0 3px var(--sheen);
+}
+.crash-chips .chip-max {
+  grid-column: span 4; width: 100%; max-width: none;
+  aspect-ratio: auto; min-height: 54px; border-radius: 999px;
+  display: grid; place-items: center; gap: 1px;
+}
+.crash-chips .chip-max b { font-size: 14px; letter-spacing: .16em; }
+.crash-chips .chip-max small { font-size: 11px; opacity: .85; }
+
+.crash-custom-row { display: flex; gap: 8px; }
+.crash-custom-row input { flex: 1; min-width: 0; height: 42px; font-size: 14px; }
+.crash-custom-row .btn { height: 42px; padding-inline: 16px; }
+.crash-bet-line {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted);
+  padding: 11px 14px; border-radius: 12px;
+  border: 1.5px solid var(--gold-line-hi); background: var(--sunken);
+}
+.crash-bet-line b {
+  color: var(--accent-text); font-size: 19px; letter-spacing: 0;
+  font-variant-numeric: tabular-nums; text-transform: none;
+}
+
+/* --- Bilanz (einklappbar wie beim Blackjack) --- */
+.crash-stats-step { gap: 0; }
+.crash-stats-toggle {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  width: 100%; padding: 10px 12px; cursor: pointer; text-align: left;
+  border-radius: 11px; border: 1.5px solid var(--edge);
+  background: var(--surface); color: inherit;
+  transition: border-color .18s, background .18s;
+}
+.crash-stats-toggle:hover { border-color: var(--edge-hi); background: var(--surface-hi); }
+.crash-stats-toggle:focus-visible { outline: 2px solid var(--edge-hi); outline-offset: 2px; }
+.crash-caret {
+  color: var(--gold); font-size: 13px; line-height: 1;
+  transition: transform .28s cubic-bezier(.4, 0, .2, 1);
+}
+.crash-stats-toggle.is-open .crash-caret { transform: rotate(180deg); }
+.crash-stats-wrap {
+  display: grid; grid-template-rows: 0fr; opacity: 0;
+  transition: grid-template-rows .3s cubic-bezier(.4, 0, .2, 1), opacity .2s;
+}
+.crash-stats-wrap.is-open { grid-template-rows: 1fr; opacity: 1; }
+.crash-stats-inner { overflow: hidden; min-height: 0; }
+.crash-stats-wrap.is-open .crash-stats-inner { padding-top: 10px; }
+.crash-stats { display: grid; gap: 5px; }
+.crash-stats div {
+  display: flex; justify-content: space-between; gap: 10px;
+  font-size: 12px; color: var(--muted);
+  padding: 5px 8px; border-radius: 7px; background: var(--surface);
+  border: 1px solid var(--line);
+}
+.crash-stats b { color: var(--text); font-variant-numeric: tabular-nums; }
+
+/* --- Bühne --- */
+.crash-stage { display: grid; gap: 14px; justify-items: stretch; }
+
+.crash-recent-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.crash-recent-label {
+  font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted);
+  flex: none;
+}
+.crash-recent { display: flex; gap: 6px; flex-wrap: wrap; }
+.crash-recent-empty { font-size: 11.5px; color: var(--muted); }
+.crash-pill {
+  font-size: 11px; font-weight: 800; font-variant-numeric: tabular-nums;
+  padding: 4px 9px; border-radius: 999px; border: 1.5px solid var(--line-hi);
+  background: var(--sunken); color: var(--muted); white-space: nowrap;
+}
+.crash-pill.is-low { color: var(--loss); border-color: color-mix(in srgb, var(--loss) 45%, transparent); }
+.crash-pill.is-mid { color: var(--accent-text); border-color: var(--gold-line-hi); }
+.crash-pill.is-high {
+  color: var(--on-gold); border-color: var(--gold);
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+}
+
+/* --- Graph --- */
+.crash-graph {
+  position: relative; width: 100%;
+  aspect-ratio: 16 / 9; min-height: 260px; max-height: 460px;
+  border-radius: 20px; overflow: hidden;
+  border: 1px solid var(--gold-line-hi);
+  background:
+    radial-gradient(120% 90% at 50% 0%, var(--felt-700) 0%, var(--felt-900) 55%, var(--felt-950) 100%);
+  box-shadow: var(--shadow-lg), inset 0 0 70px rgba(0, 0, 0, .4);
+}
+#crash-canvas { display: block; width: 100%; height: 100%; }
+
+.crash-overlay {
+  position: absolute; inset: 0; display: grid; place-content: center;
+  justify-items: center; gap: 14px; pointer-events: none; text-align: center;
+  padding-inline: 12px;
+}
+/* weicher Schleier, damit die Zahl auch über der Kurve gut lesbar bleibt */
+.crash-overlay::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(46% 34% at 50% 46%, var(--scrim) 0%, transparent 72%);
+}
+.crash-mult, .crash-sub { position: relative; }
+.crash-mult {
+  font-size: clamp(44px, 8vw, 92px); font-weight: 800; line-height: .95;
+  letter-spacing: -.02em; font-variant-numeric: tabular-nums;
+  color: var(--text);
+  text-shadow: 0 0 26px var(--scrim), 0 4px 20px rgba(0, 0, 0, .55);
+  transition: color .2s, transform .2s;
+}
+.crash-sub {
+  font-size: 11.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted);
+  text-shadow: 0 2px 10px rgba(0, 0, 0, .5);
+}
+.crash-stage.is-running .crash-mult { color: var(--accent-text); }
+.crash-stage.is-cashed .crash-mult { color: var(--win); }
+.crash-stage.is-crashed .crash-mult {
+  color: var(--loss); animation: crash-shake .42s cubic-bezier(.36, .07, .19, .97);
+}
+@keyframes crash-shake {
+  10%, 90% { transform: translateX(-3px); }
+  20%, 80% { transform: translateX(5px); }
+  30%, 50%, 70% { transform: translateX(-8px); }
+  40%, 60% { transform: translateX(8px); }
+  100% { transform: translateX(0); }
+}
+.crash-stage.is-crashed .crash-graph { animation: crash-flash .5s ease-out; }
+@keyframes crash-flash {
+  0% { box-shadow: var(--shadow-lg), inset 0 0 90px color-mix(in srgb, var(--loss) 45%, transparent); }
+  100% { box-shadow: var(--shadow-lg), inset 0 0 70px rgba(0, 0, 0, .4); }
+}
+
+/* --- Laufende Werte --- */
+.crash-live {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+}
+.crash-live-item {
+  display: grid; gap: 3px; padding: 10px 14px; border-radius: 12px;
+  border: 1px solid var(--line); background: var(--surface); text-align: center;
+}
+.crash-live-item .stat-value { font-size: 18px; font-variant-numeric: tabular-nums; }
+
+/* --- Ergebnis --- */
+.crash-result {
+  display: grid; gap: 3px; justify-items: center; text-align: center;
+  padding: 12px 16px; border-radius: 14px;
+  border: 1.5px solid var(--line-hi);
+  background: linear-gradient(180deg, var(--panel-1), var(--panel-2));
+}
+.crash-result strong { font-size: 15px; letter-spacing: .12em; text-transform: uppercase; }
+.crash-result span { font-size: 12.5px; color: var(--muted); }
+.crash-result b { color: var(--text); }
+.crash-result-net { font-size: 19px !important; font-weight: 800; font-variant-numeric: tabular-nums; }
+.crash-result.is-win { border-color: var(--win); }
+.crash-result.is-win strong, .crash-result.is-win .crash-result-net { color: var(--win); }
+.crash-result.is-loss { border-color: var(--loss); }
+.crash-result.is-loss strong, .crash-result.is-loss .crash-result-net { color: var(--loss); }
+.crash-result.is-even { border-color: var(--gold-line-hi); }
+.crash-result.is-even strong, .crash-result.is-even .crash-result-net { color: var(--accent-text); }
+
+/* --- Steuerung --- */
+.crash-actions { display: grid; gap: 10px; }
+.crash-cash {
+  display: grid; gap: 2px; place-items: center; min-height: 58px;
+  animation: crash-pulse 1.15s ease-in-out infinite;
+}
+.crash-cash small { font-size: 13px; opacity: .85; font-variant-numeric: tabular-nums; }
+@keyframes crash-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 var(--edge-glow); }
+  50% { box-shadow: 0 0 0 8px transparent; }
+}
+.crash-hint { font-size: 12px; color: var(--muted); text-align: center; min-height: 1.2em; }
+.crash-live-item .stat-value.is-zero { color: var(--loss); }
+
+/* --- Notfallguthaben im Shop --- */
+.bonus-card-bailout { border-style: dashed; }
+.bonus-card-bailout.is-ready { border-style: solid; }
+.bonus-card-bailout .bonus-coin {
+  background: linear-gradient(180deg, var(--loss), color-mix(in srgb, var(--loss) 65%, #000));
+  color: #fff;
+}
+.bonus-card-bailout.is-ready .bonus-coin {
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+  color: var(--on-gold);
+}
+
+/* --- Vorschaubild im Spielhub --- */
+.game-art-crash { place-items: center; }
+.art-crash { width: 78%; height: auto; overflow: visible; }
+.art-crash-fill { fill: var(--crash-fill); }
+.art-crash-line {
+  fill: none; stroke: var(--crash-line); stroke-width: 3;
+  stroke-linecap: round; stroke-linejoin: round;
+}
+.art-crash-dot { fill: var(--crash-ball); }
+
+/* --- Responsive --- */
+@media (max-width: 1080px) {
+  .crash-layout { grid-template-columns: 300px minmax(0, 1fr); }
+}
+@media (max-width: 900px) {
+  .crash-layout { grid-template-columns: minmax(0, 1fr); }
+  .crash-panel { order: 2; }
+  .crash-stage { order: 1; }
+  .crash-graph { aspect-ratio: 4 / 3; min-height: 240px; }
+}
+@media (max-width: 640px) {
+  .crash-layout { padding: 14px 12px 28px; gap: 14px; }
+  .crash-graph { aspect-ratio: 1 / 1; min-height: 220px; max-height: 360px; }
+  .crash-chips { gap: 8px; }
+  .crash-chips .chip { max-width: 62px; font-size: 11px; }
+  .crash-chips .chip-max { max-width: none; width: 100%; min-height: 50px; }
+  .crash-recent-row { gap: 8px; }
+  .crash-recent-label { width: 100%; }
+  .crash-live { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .crash-live-item { padding: 8px 10px; }
+  .crash-live-item .stat-value { font-size: 15px; }
+}
+@media (max-width: 380px) {
+  .crash-chips { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .crash-chips .chip-max { grid-column: span 3; }
 }
 
 @media (prefers-reduced-motion: reduce) {
