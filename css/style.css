@@ -787,38 +787,76 @@ button, input, select { font: inherit; color: inherit; }
 .page-text p, .page-text li { color: #cfd8d2; font-size: 14px; line-height: 1.65; }
 .page-text ul { margin: 0 0 10px; padding-left: 20px; }
 
-/* Gratis-Bonus im Shop */
+/* --- Boni im Shop --- */
+.bonus-grid {
+  display: grid; gap: 12px; margin-bottom: 26px;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
 .bonus-card {
-  padding: 18px; border-radius: var(--radius); margin-bottom: 26px;
-  background: linear-gradient(160deg, var(--gold-line), var(--gold-soft));
-  border: 1px solid var(--gold-line);
+  display: flex; flex-direction: column; gap: 10px; padding: 16px;
+  border-radius: var(--radius); border: 1.5px solid var(--edge);
+  background: linear-gradient(160deg, var(--gold-soft), var(--surface));
+  box-shadow: inset 0 1px 0 var(--edge-top);
+  transition: border-color .2s, box-shadow .25s, transform .2s;
 }
-.bonus-head { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+.bonus-card.is-ready {
+  border-color: var(--edge-hi);
+  animation: bonusReady 2.6s ease-in-out infinite;
+}
+.bonus-card.is-waiting { opacity: .82; }
+.bonus-head { display: flex; align-items: center; gap: 11px; }
 .bonus-coin {
-  width: 46px; height: 46px; flex: none; border-radius: 50%; display: grid; place-items: center;
-  font-size: 21px; font-weight: 800; color: var(--on-gold);
+  width: 40px; height: 40px; flex: none; border-radius: 50%; display: grid; place-items: center;
+  font-size: 18px; font-weight: 800; color: var(--on-gold);
   background: radial-gradient(circle at 34% 28%, var(--gold-bright), var(--gold) 60%, var(--gold-dim));
-  border: 2px dashed rgba(255, 255, 255, .6); box-shadow: 0 4px 12px rgba(0, 0, 0, .45);
+  border: 2px dashed rgba(255, 255, 255, .65); box-shadow: 0 4px 12px var(--press);
 }
-.bonus-text { flex: 1; min-width: 0; }
-.bonus-title { font-size: 17px; }
-.bonus-sub { font-size: 12.5px; color: var(--muted); margin-top: 3px; }
-.bonus-amount { font-size: 22px; color: var(--accent-text); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.bonus-bar {
-  height: 6px; border-radius: 99px; overflow: hidden; margin-bottom: 14px;
-  background: var(--sunken);
+.bonus-title { font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--gold); }
+.bonus-amount { font-size: 22px; color: var(--accent-text); font-variant-numeric: tabular-nums; }
+.bonus-blurb { font-size: 11.5px; color: var(--muted); line-height: 1.45; flex: 1; }
+.bonus-timer {
+  font-size: 12px; color: var(--muted); text-align: center;
+  font-variant-numeric: tabular-nums;
 }
-.bonus-bar span {
-  display: block; height: 100%; width: 0;
-  background: linear-gradient(90deg, var(--gold-dim), var(--gold-bright));
-  transition: width .9s linear;
-}
-.bonus-card.is-ready { animation: bonusReady 2.6s ease-in-out infinite; }
-.bonus-card.is-ready .bonus-bar span { width: 100% !important; }
+.bonus-timer b { color: var(--text); }
+.bonus-card .btn { width: 100%; }
 @keyframes bonusReady {
-  0%, 100% { box-shadow: 0 0 0 rgba(242, 221, 171, 0); }
-  50% { box-shadow: 0 0 26px rgba(242, 221, 171, .3); }
+  0%, 100% { box-shadow: inset 0 1px 0 var(--edge-top); }
+  50% { box-shadow: inset 0 1px 0 var(--edge-top), 0 0 22px var(--edge-glow); }
 }
+
+/* Goldener Punkt am Shop-Eintrag im Hauptmenü */
+.bonus-dot {
+  display: inline-block; width: 10px; height: 10px; margin-left: 9px; border-radius: 50%;
+  vertical-align: 2px;
+  background: radial-gradient(circle at 35% 30%, var(--gold-bright), var(--gold) 70%);
+  box-shadow: 0 0 0 2px var(--edge-glow), 0 0 10px var(--gold);
+  animation: dotPulse 1.8s ease-in-out infinite;
+}
+@keyframes dotPulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 2px var(--edge-glow), 0 0 8px var(--gold); }
+  50% { transform: scale(1.18); box-shadow: 0 0 0 3px var(--edge-glow), 0 0 16px var(--gold); }
+}
+
+/* Gamertag in den Einstellungen */
+/* .setting-row wird später definiert und ist gleich spezifisch – deshalb
+   hier beide Klassen ansprechen, damit die Blockdarstellung gewinnt. */
+.setting-row.setting-row-block { display: block; }
+.setting-head { margin-bottom: 12px; }
+.setting-head b { color: var(--accent-text); }
+.gamertag-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; }
+.gamertag-form input {
+  padding: 10px 13px; border-radius: var(--radius-sm);
+  background: var(--sunken); border: 1px solid var(--edge); color: var(--text);
+}
+.gamertag-form input:hover { border-color: var(--edge-hi); }
+.gamertag-form input:focus { border-color: var(--edge-hi); box-shadow: var(--ring); outline: none; }
+.gamertag-msg { font-size: 12.5px; margin-top: 9px; }
+.gamertag-msg.is-error { color: var(--loss); }
+.gamertag-msg.is-ok { color: var(--win); }
+.gamertag-hint { font-size: 11.5px; color: var(--muted); margin-top: 7px; }
+.menu-user-cta { font-size: 12px; padding: 0 0 0 6px; }
+
 .shop-heading { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); margin-bottom: 8px; }
 
 /* Hinweis am Shop-Knopf im Hauptmenü */
@@ -1105,6 +1143,13 @@ button, input, select { font: inherit; color: inherit; }
 .mines-mult { color: var(--accent-text); }
 .mines-mult.pulse { animation: pulseVal .45s ease; }
 
+.mines-next {
+  font-size: 12.5px; color: var(--muted); text-align: center; margin-top: -6px;
+}
+.mines-next b { color: var(--accent-text); font-variant-numeric: tabular-nums; }
+.mines-risk { color: var(--loss); }
+#mines-payout.is-below { color: var(--loss); }
+
 .mines-grid {
   display: grid; gap: clamp(5px, 1vw, 9px); width: min(560px, 100%);
   grid-template-columns: repeat(var(--cols, 5), minmax(0, 1fr));
@@ -1178,6 +1223,9 @@ button, input, select { font: inherit; color: inherit; }
 .mines-result .mines-result-net { font-size: 17px; font-weight: 700; margin-top: 3px; }
 .mines-result.is-win { border-color: var(--win); background: rgba(74, 222, 128, .1); }
 .mines-result.is-win strong, .mines-result.is-win .mines-result-net { color: var(--win); }
+.mines-result.is-even { border-color: var(--gold-line-hi); background: var(--gold-soft); }
+.mines-result.is-even strong { color: var(--accent-text); }
+.mines-result.is-even .mines-result-net { color: var(--muted); }
 .mines-result.is-loss { border-color: var(--loss); background: rgba(217, 51, 58, .12); }
 .mines-result.is-loss strong, .mines-result.is-loss .mines-result-net { color: var(--loss); }
 
