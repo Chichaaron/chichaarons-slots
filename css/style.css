@@ -54,6 +54,8 @@
   --edge-glow: rgba(212, 175, 106, .3);   /* weicher Schein */
   --edge-top: rgba(255, 255, 255, .14);   /* Lichtkante oben */
   --press: rgba(0, 0, 0, .4);             /* Schatten im gedrückten Zustand */
+  --btn-shade: rgba(0, 0, 0, .25);        /* Verlauf-Fuß der Knöpfe */
+  --btn-shade-hi: rgba(0, 0, 0, .2);      /* dasselbe beim Überfahren */
 
   /* --- Gold-Akzente --- */
   --gold-line: rgba(212, 175, 106, .3);
@@ -74,6 +76,20 @@
   --crash-fill: rgba(212, 175, 106, .16);
   --crash-ball: #f6e7c2;
   --crash-bust: #f8717a;
+
+  /* --- Plinko (wird von js/plinko.js ausgelesen) --- */
+  --plinko-felt-1: #0e2a1c;      /* Spielfeld oben */
+  --plinko-felt-2: #050f08;      /* Spielfeld unten */
+  --plinko-pin: #cfd8d1;         /* Stift */
+  --plinko-pin-hi: #ffffff;      /* Glanzpunkt auf dem Stift */
+  --plinko-pin-ring: rgba(0, 0, 0, .45);
+  --plinko-ball: #f0cf86;        /* Kugel */
+  --plinko-ball-hi: #fffaf0;     /* Licht auf der Kugel */
+  --plinko-ball-edge: #7d6534;   /* Kugelrand */
+  --plinko-slot-low: #2f6d4c;    /* Mitte: kleine Multiplikatoren */
+  --plinko-slot-mid: #b8862c;
+  --plinko-slot-high: #b32127;   /* außen: große Multiplikatoren */
+  --plinko-slot-ink: #fdf7e6;    /* Schrift in den Feldern */
 
   /* --- Spielkarten (Blackjack) --- */
   --card-bg: #fbf8f1;          /* Kartenrücken-Weiß der Vorderseite */
@@ -154,6 +170,13 @@
   --wheel-bowl-1: #26262c; --wheel-bowl-2: #131317; --wheel-bowl-3: #08080a;
   --wheel-cone-1: #2e2e36; --wheel-cone-2: #1b1b21; --wheel-cone-3: #0c0c0f;
   --wheel-rim: #a9a496; --wheel-text: #f2f1ec;
+
+  --plinko-felt-1: #1d1d25; --plinko-felt-2: #060608;
+  --plinko-pin: #d8d4c8; --plinko-pin-hi: #ffffff;
+  --plinko-pin-ring: rgba(0, 0, 0, .55);
+  --plinko-ball: #e8e4d8; --plinko-ball-hi: #ffffff; --plinko-ball-edge: #6d6960;
+  --plinko-slot-low: #3a3a44; --plinko-slot-mid: #8b867b; --plinko-slot-high: #a81f28;
+  --plinko-slot-ink: #f6f5f1;
 }
 
 /* --- Royal Bordeaux: Weinrot mit Messing --- */
@@ -194,69 +217,242 @@
   --wheel-bowl-1: #4a2418; --wheel-bowl-2: #2a1009; --wheel-bowl-3: #150605;
   --wheel-cone-1: #5a2a1c; --wheel-cone-2: #351510; --wheel-cone-3: #1b0808;
   --wheel-rim: #d2a95e; --wheel-text: #fbf3e6;
+
+  --plinko-felt-1: #401125; --plinko-felt-2: #150409;
+  --plinko-pin: #f0dcb4; --plinko-pin-hi: #ffffff;
+  --plinko-pin-ring: rgba(20, 3, 8, .55);
+  --plinko-ball: #f7dfa6; --plinko-ball-hi: #fff8e6; --plinko-ball-edge: #7d5a1e;
+  --plinko-slot-low: #5a2038; --plinko-slot-mid: #c99a4d; --plinko-slot-high: #d4323f;
+  --plinko-slot-ink: #fdf6e9;
 }
 
-/* --- Ivory & Gold: helles Theme, warme Cremetöne mit Gold --- */
+/* --- Platinum: kühles Weiß, Grau und Graphit. Keine Buntfarbe als Akzent,
+       dafür klare, gut sichtbare Kanten auf jeder hellen Fläche. --- */
+:root[data-theme="platinum"] {
+  --felt-950: #f7f8fa; --felt-900: #f1f3f6; --felt-800: #e9ecf1;
+  --felt-700: #dde1e8; --felt-600: #ccd2db; --felt-500: #b6bdc8;
+
+  /* Statt Gold trägt hier Graphit den Akzent – dunkel auf hell ist der
+     stärkste Kontrast, den ein weißes Design haben kann. */
+  --gold: #3a4049; --gold-bright: #5c6470; --gold-dim: #878e99; --accent-text: #22262d;
+  --red: #9b2430; --red-bright: #b8303d; --black-cell: #21252b;
+  --text: #14171b; --muted: #6b727c; --win: #1c6b45; --loss: #a32732;
+  --on-gold: #f7f8fa;
+
+  --bg-base: #e9ebef; --bg-glow-1: #fdfdfe; --bg-glow-2: #d6dae1;
+  --surface: rgba(24, 30, 40, .05);
+  --surface-hi: rgba(24, 30, 40, .1);
+  --sunken: rgba(255, 255, 255, .82);
+  --line: rgba(24, 30, 40, .17);
+  --line-hi: rgba(24, 30, 40, .32);
+  --sheen: rgba(255, 255, 255, .75);
+  --panel-1: rgba(255, 255, 255, .93); --panel-2: rgba(242, 244, 247, .97);
+  --bar-bg: rgba(250, 251, 253, .9); --scrim: rgba(26, 31, 38, .5);
+  --gold-line: rgba(58, 64, 73, .3);
+  --gold-line-hi: rgba(58, 64, 73, .6);
+  --gold-soft: rgba(58, 64, 73, .09);
+
+  /* Ränder: deutlich sichtbar, ohne dass es nach Neon aussieht. */
+  --edge: rgba(37, 44, 55, .45);
+  --edge-hi: rgba(15, 19, 25, .95);
+  --edge-glow: rgba(37, 44, 55, .2);
+  --edge-top: rgba(255, 255, 255, .95);
+  --press: rgba(28, 34, 44, .28);
+  --btn-shade: rgba(30, 38, 50, .11);
+  --btn-shade-hi: rgba(30, 38, 50, .06);
+
+  --mine-body: #21252b; --mine-spike: #9b2430; --mine-shine: rgba(255, 255, 255, .9);
+
+  --crash-grid: rgba(30, 38, 50, .1);
+  --crash-axis: rgba(58, 64, 73, .42);
+  --crash-label: #6b727c;
+  --crash-line: #2e343d; --crash-line-hi: #5c6470;
+  --crash-fill: rgba(58, 64, 73, .13);
+  --crash-ball: #14171b; --crash-bust: #a32732;
+
+  --plinko-felt-1: #ffffff; --plinko-felt-2: #dfe3ea;
+  --plinko-pin: #464d58; --plinko-pin-hi: #aeb5c0;
+  --plinko-pin-ring: rgba(255, 255, 255, .85);
+  --plinko-ball: #1d222a; --plinko-ball-hi: #79808c; --plinko-ball-edge: #ffffff;
+  --plinko-slot-low: #767d88; --plinko-slot-mid: #4d545e; --plinko-slot-high: #1c2027;
+  --plinko-slot-ink: #f7f8fa;
+
+  --card-bg: #ffffff; --card-ink: #16191e; --card-red: #9b2430;
+  --card-court: #f1f3f6; --card-edge: rgba(30, 36, 45, .32);
+  --card-back-1: #2e343d; --card-back-2: rgba(255, 255, 255, .5);
+
+  --board-felt: #dde1e8;
+  --cell-base: rgba(255, 255, 255, .6);
+  --cell-line: rgba(30, 38, 50, .2);
+
+  --wheel-green: #24614a; --wheel-red: #9b2430; --wheel-black: #21252b;
+  --wheel-bowl-1: #f2f4f7; --wheel-bowl-2: #d7dbe2; --wheel-bowl-3: #b4bac5;
+  --wheel-cone-1: #fafbfc; --wheel-cone-2: #e2e6ec; --wheel-cone-3: #c3c9d3;
+  --wheel-rim: #878e99; --wheel-text: #fbfcfd;
+
+  --shadow-lg: 0 24px 60px rgba(28, 36, 48, .18);
+  --shadow-md: 0 10px 30px rgba(28, 36, 48, .13);
+}
+
+/* --- Ivory & Gold: Elfenbein als Grundton, Gold als tragendes Material.
+       Ränder, Knöpfe, Trennlinien und aktive Zustände sind hier golden. --- */
 :root[data-theme="ivory"] {
-  --felt-950: #efe7d7; --felt-900: #e9dfcb; --felt-800: #e2d6bd;
-  --felt-700: #b9a67c; --felt-600: #a8946a; --felt-500: #96825a;
+  --felt-950: #f4ecdb; --felt-900: #eee3cd; --felt-800: #e6d9bd;
+  --felt-700: #b8a06a; --felt-600: #a58b52; --felt-500: #8f7644;
 
-  --gold: #a37c35; --gold-bright: #c9a459; --gold-dim: #74561f; --accent-text: #6f5220;
-  --red: #a81f2a; --red-bright: #c62c37; --black-cell: #2b2621;
-  --text: #2a2318; --muted: #7b6a51; --win: #17743f; --loss: #a81f2a;
-  --on-gold: #241a06;
+  /* Warmes, gedecktes Altgold – kein Zitronengelb. */
+  --gold: #9a7327; --gold-bright: #c9a24a; --gold-dim: #6b4d17; --accent-text: #6a4c15;
+  --red: #8f1a24; --red-bright: #b02733; --black-cell: #2b2621;
+  --text: #2b2114; --muted: #7a6544; --win: #146638; --loss: #97202b;
+  --on-gold: #231904;
 
-  --bg-base: #f2ebdd; --bg-glow-1: #fdf8ec; --bg-glow-2: #e6dac1;
-  --surface: rgba(90, 68, 26, .06);
-  --surface-hi: rgba(90, 68, 26, .11);
-  --sunken: rgba(255, 253, 246, .72);
-  --line: rgba(90, 68, 26, .2);
-  --line-hi: rgba(90, 68, 26, .34);
-  --sheen: rgba(255, 255, 255, .5);
-  --panel-1: rgba(255, 252, 244, .88); --panel-2: rgba(245, 238, 225, .95);
-  --bar-bg: rgba(250, 245, 234, .86); --scrim: rgba(60, 48, 26, .5);
-  --gold-line: rgba(163, 124, 53, .34);
-  --gold-line-hi: rgba(163, 124, 53, .6);
-  --gold-soft: rgba(163, 124, 53, .13);
-  --edge: rgba(122, 92, 34, .55);
-  --edge-hi: rgba(90, 66, 20, .95);
-  --edge-glow: rgba(140, 105, 40, .26);
-  --edge-top: rgba(255, 255, 255, .8);
-  --press: rgba(80, 60, 25, .3);
+  --bg-base: #f3ecdc; --bg-glow-1: #fffaf0; --bg-glow-2: #e6d7b6;
+  --surface: rgba(154, 115, 39, .08);
+  --surface-hi: rgba(154, 115, 39, .15);
+  --sunken: rgba(255, 253, 247, .8);
+  --line: rgba(154, 115, 39, .3);
+  --line-hi: rgba(154, 115, 39, .5);
+  --sheen: rgba(255, 255, 255, .62);
+  --panel-1: rgba(255, 251, 242, .9); --panel-2: rgba(247, 240, 226, .96);
+  --bar-bg: rgba(250, 244, 231, .9); --scrim: rgba(62, 46, 20, .5);
+  --gold-line: rgba(154, 115, 39, .5);
+  --gold-line-hi: rgba(154, 115, 39, .88);
+  --gold-soft: rgba(154, 115, 39, .16);
 
-  --crash-grid: rgba(90, 68, 26, .12);
-  --crash-axis: rgba(122, 92, 34, .45);
-  --crash-label: #7b6a51;
-  --crash-line: #9a6f22; --crash-line-hi: #c9a459;
-  --crash-fill: rgba(163, 124, 53, .16);
-  --crash-ball: #7a5c1e; --crash-bust: #a81f2a;
+  /* Ränder sind hier bewusst Gold – jedes klickbare Element bekommt dadurch
+     eine sichtbare Metallkante. */
+  --edge: rgba(140, 102, 30, .72);
+  --edge-hi: rgba(102, 72, 18, 1);
+  --edge-glow: rgba(163, 124, 53, .38);
+  --edge-top: rgba(255, 252, 242, .88);
+  --press: rgba(74, 54, 18, .32);
+  --btn-shade: rgba(122, 90, 28, .16);
+  --btn-shade-hi: rgba(122, 90, 28, .09);
 
-  --card-bg: #ffffff; --card-ink: #26221b; --card-red: #a81f2a;
-  --card-court: #f7f0e0; --card-edge: rgba(76, 58, 24, .34);
-  --card-back-1: #a37c35; --card-back-2: rgba(255, 250, 238, .62);
+  --mine-body: #2b2621; --mine-spike: #8f1a24; --mine-shine: rgba(255, 255, 255, .9);
 
-  --board-felt: #b9a67c;
-  --cell-base: rgba(255, 255, 255, .28);
-  --cell-line: rgba(60, 45, 18, .22);
+  --crash-grid: rgba(122, 90, 28, .14);
+  --crash-axis: rgba(140, 102, 30, .5);
+  --crash-label: #7a6544;
+  --crash-line: #9a7327; --crash-line-hi: #c9a24a;
+  --crash-fill: rgba(154, 115, 39, .18);
+  --crash-ball: #6b4d17; --crash-bust: #97202b;
 
-  --wheel-green: #1a6b4d; --wheel-red: #a81f2a; --wheel-black: #2b2621;
-  --wheel-bowl-1: #f3ead6; --wheel-bowl-2: #ddcdaa; --wheel-bowl-3: #bda87c;
-  --wheel-cone-1: #f6efe0; --wheel-cone-2: #e2d3b3; --wheel-cone-3: #c8b489;
-  --wheel-rim: #a37c35; --wheel-text: #fdfaf2;
+  --plinko-felt-1: #fffaf0; --plinko-felt-2: #e3d3ae;
+  --plinko-pin: #8a6820; --plinko-pin-hi: #f7e6bc;
+  --plinko-pin-ring: rgba(255, 252, 242, .8);
+  --plinko-ball: #6b4d17; --plinko-ball-hi: #d8b463; --plinko-ball-edge: #fffaf0;
+  --plinko-slot-low: #6f6248; --plinko-slot-mid: #a67c22; --plinko-slot-high: #8f1a24;
+  --plinko-slot-ink: #fffaf0;
 
-  --shadow-lg: 0 24px 60px rgba(76, 58, 24, .22);
-  --shadow-md: 0 10px 30px rgba(76, 58, 24, .16);
+  --card-bg: #ffffff; --card-ink: #26221b; --card-red: #8f1a24;
+  --card-court: #f9f2e2; --card-edge: rgba(76, 58, 24, .36);
+  --card-back-1: #9a7327; --card-back-2: rgba(255, 250, 238, .62);
+
+  --board-felt: #b8a06a;
+  --cell-base: rgba(255, 255, 255, .3);
+  --cell-line: rgba(90, 68, 26, .3);
+
+  --wheel-green: #17643f; --wheel-red: #8f1a24; --wheel-black: #2b2621;
+  --wheel-bowl-1: #f6eeda; --wheel-bowl-2: #dcc79c; --wheel-bowl-3: #b89f68;
+  --wheel-cone-1: #fbf5e6; --wheel-cone-2: #e4d3aa; --wheel-cone-3: #c6ac74;
+  --wheel-rim: #9a7327; --wheel-text: #fdfaf2;
+
+  --shadow-lg: 0 24px 60px rgba(76, 58, 24, .24);
+  --shadow-md: 0 10px 30px rgba(76, 58, 24, .17);
 }
 
-/* Im hellen Theme wirken die dunklen Schlagschatten zu hart */
+/* =====================================================================
+   Feinschliff der beiden hellen Designs.
+   Auf hellem Grund sind dunkle Schlagschatten zu hart, und die Kanten
+   müssen kräftiger sein, damit nichts mit dem Hintergrund verschmilzt.
+   ===================================================================== */
+
+/* --- gemeinsam: Kanten und Schatten --- */
 :root[data-theme="ivory"] .field-chip,
-:root[data-theme="ivory"] .chip { box-shadow: 0 4px 10px rgba(76, 58, 24, .3); }
-:root[data-theme="ivory"] .board { box-shadow: var(--shadow-lg), inset 0 0 60px rgba(90, 68, 26, .18); }
+:root[data-theme="ivory"] .chip { box-shadow: 0 4px 10px rgba(76, 58, 24, .32); }
+:root[data-theme="platinum"] .field-chip,
+:root[data-theme="platinum"] .chip { box-shadow: 0 4px 10px rgba(28, 36, 48, .26); }
+
+:root[data-theme="ivory"] .board { box-shadow: var(--shadow-lg), inset 0 0 60px rgba(90, 68, 26, .2); }
+:root[data-theme="platinum"] .board { box-shadow: var(--shadow-lg), inset 0 0 60px rgba(30, 38, 50, .12); }
+
 :root[data-theme="ivory"] .cell.black { background: linear-gradient(180deg, #3a342c, var(--black-cell)); }
+:root[data-theme="platinum"] .cell.black { background: linear-gradient(180deg, #32373f, var(--black-cell)); }
 :root[data-theme="ivory"] .bet-dot.black { background: #4a443a; }
+:root[data-theme="platinum"] .bet-dot.black { background: #3d434c; }
 :root[data-theme="ivory"] #wheel-canvas { filter: drop-shadow(0 20px 34px rgba(76, 58, 24, .3)); }
+:root[data-theme="platinum"] #wheel-canvas { filter: drop-shadow(0 20px 34px rgba(28, 36, 48, .26)); }
 :root[data-theme="ivory"] .summary-ball.black,
 :root[data-theme="ivory"] .result-color.black { background: #3a342c; }
+:root[data-theme="platinum"] .summary-ball.black,
+:root[data-theme="platinum"] .result-color.black { background: #32373f; }
+
+/* Die dunklen Bühnen (Crash-Graph, Plinko-Feld, Blackjack-Tisch) bekommen
+   auf hellem Grund einen klaren Rahmen statt eines dunklen Lochs. */
+:root[data-theme="ivory"] .crash-graph,
+:root[data-theme="platinum"] .crash-graph { box-shadow: var(--shadow-lg), inset 0 0 60px var(--gold-soft); }
+/* Auf hellem Grund braucht die große Zahl einen hellen Schleier, keinen
+   dunklen – sonst liegt ein grauer Fleck mitten im Graphen. */
+:root[data-theme="ivory"] .crash-overlay::before,
+:root[data-theme="platinum"] .crash-overlay::before {
+  background: radial-gradient(46% 34% at 50% 46%, rgba(255, 255, 255, .92) 0%, transparent 72%);
+}
+:root[data-theme="ivory"] .crash-mult,
+:root[data-theme="platinum"] .crash-mult {
+  text-shadow: 0 0 20px rgba(255, 255, 255, .95), 0 2px 6px rgba(255, 255, 255, .85);
+}
+:root[data-theme="ivory"] .crash-sub,
+:root[data-theme="platinum"] .crash-sub { text-shadow: 0 1px 4px rgba(255, 255, 255, .9); }
+
+/* --- Metallknöpfe: dreistufiger Verlauf statt Flächenfarbe --- */
+:root[data-theme="ivory"] .btn-gold,
+:root[data-theme="platinum"] .btn-gold {
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--gold-bright) 78%, #fff) 0%,
+    var(--gold-bright) 32%,
+    var(--gold) 54%,
+    color-mix(in srgb, var(--gold) 82%, #000) 100%);
+  border-color: var(--gold-dim);
+  box-shadow: inset 0 1px 0 var(--sheen), 0 2px 6px var(--press);
+}
+:root[data-theme="ivory"] .btn-gold:hover:not(:disabled),
+:root[data-theme="platinum"] .btn-gold:hover:not(:disabled) {
+  filter: brightness(1.06);
+  box-shadow: inset 0 1px 0 var(--sheen), 0 0 0 2px var(--edge-glow), 0 8px 20px var(--press);
+}
+
+/* --- Ivory: Gold trägt auch Überschriften, Trennlinien und Karten --- */
+:root[data-theme="ivory"] .page-card,
+:root[data-theme="ivory"] .theme-card,
+:root[data-theme="ivory"] .game-card,
+:root[data-theme="ivory"] .crash-panel,
+:root[data-theme="ivory"] .plinko-panel,
+:root[data-theme="ivory"] .side-panel { border-color: var(--gold-line-hi); }
+:root[data-theme="ivory"] .shop-heading,
+:root[data-theme="ivory"] .page-head h1 {
+  border-bottom: 1.5px solid var(--gold-line);
+  padding-bottom: 6px;
+}
+:root[data-theme="ivory"] .page-head h1 { border-bottom: 0; }
+:root[data-theme="ivory"] .setting-row { border-color: var(--gold-line); }
+:root[data-theme="ivory"] .bonus-coin { border-color: rgba(255, 250, 238, .8); }
+
+/* --- Platinum: klare Kanten, keine Farbflächen --- */
+:root[data-theme="platinum"] .page-card,
+:root[data-theme="platinum"] .theme-card,
+:root[data-theme="platinum"] .game-card,
+:root[data-theme="platinum"] .crash-panel,
+:root[data-theme="platinum"] .plinko-panel,
+:root[data-theme="platinum"] .side-panel { border-color: var(--line-hi); }
+:root[data-theme="platinum"] .bonus-card {
+  background: linear-gradient(160deg, rgba(255, 255, 255, .9), var(--surface));
+}
+:root[data-theme="platinum"] .bonus-coin { border-color: rgba(255, 255, 255, .85); }
+:root[data-theme="platinum"] .toast.good { border-color: color-mix(in srgb, var(--win) 55%, transparent); }
+/* Die Jetons behalten ihre Werte-Farben, wirken hier aber gedämpft –
+   sonst wären sie die einzigen Buntflächen im ganzen Design. */
+:root[data-theme="platinum"] .chip:not(.chip-max):not(:disabled) { filter: saturate(.4); }
 
 /* ---------- 2 Basis ---------- */
 *, *::before, *::after { box-sizing: border-box; }
@@ -338,14 +534,14 @@ button, input, select { font: inherit; color: inherit; }
 /* ---------- 3 Buttons & Formulare ---------- */
 .btn {
   border: 1px solid var(--edge);
-  background: linear-gradient(180deg, var(--surface), rgba(0, 0, 0, .25));
+  background: linear-gradient(180deg, var(--surface), var(--btn-shade));
   color: var(--text); padding: 11px 18px; border-radius: var(--radius-sm);
   cursor: pointer; font-weight: 600; letter-spacing: .02em;
   box-shadow: inset 0 1px 0 var(--edge-top), 0 1px 2px var(--press);
   transition: transform .12s ease, background .18s, border-color .18s, box-shadow .18s, opacity .18s;
 }
 .btn:hover:not(:disabled) {
-  background: linear-gradient(180deg, var(--surface-hi), rgba(0, 0, 0, .2));
+  background: linear-gradient(180deg, var(--surface-hi), var(--btn-shade-hi));
   border-color: var(--edge-hi); transform: translateY(-1px);
   box-shadow: inset 0 1px 0 var(--edge-top), 0 0 0 1px var(--edge-glow), 0 6px 16px var(--press);
 }
@@ -836,7 +1032,7 @@ button, input, select { font: inherit; color: inherit; }
 .page-lead { color: var(--muted); font-size: 14px; margin-bottom: 20px; }
 .page-foot { margin-top: 18px; font-size: 12px; }
 .page-text h2 { font-size: 15px; color: var(--gold); margin: 22px 0 8px; letter-spacing: .04em; }
-.page-text p, .page-text li { color: #cfd8d2; font-size: 14px; line-height: 1.65; }
+.page-text p, .page-text li { color: var(--muted); font-size: 14px; line-height: 1.65; }
 .page-text ul { margin: 0 0 10px; padding-left: 20px; }
 
 /* --- Boni im Shop --- */
@@ -856,14 +1052,20 @@ button, input, select { font: inherit; color: inherit; }
   animation: bonusReady 2.6s ease-in-out infinite;
 }
 .bonus-card.is-waiting { opacity: .82; }
-.bonus-head { display: flex; align-items: center; gap: 11px; }
+/* min-width:0 lässt die Textspalte schrumpfen – sonst schiebt ein langer
+   Bonusname wie "Notfallguthaben" die Karte auseinander. */
+.bonus-head { display: flex; align-items: center; gap: 11px; min-width: 0; }
+.bonus-head > div { min-width: 0; }
 .bonus-coin {
   width: 40px; height: 40px; flex: none; border-radius: 50%; display: grid; place-items: center;
   font-size: 18px; font-weight: 800; color: var(--on-gold);
   background: radial-gradient(circle at 34% 28%, var(--gold-bright), var(--gold) 60%, var(--gold-dim));
   border: 2px dashed rgba(255, 255, 255, .65); box-shadow: 0 4px 12px var(--press);
 }
-.bonus-title { font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--gold); }
+.bonus-title {
+  font-size: 12px; letter-spacing: .05em; text-transform: uppercase; color: var(--gold);
+  line-height: 1.25; overflow-wrap: anywhere;
+}
 .bonus-amount { font-size: 22px; color: var(--accent-text); font-variant-numeric: tabular-nums; }
 .bonus-blurb { font-size: 11.5px; color: var(--muted); line-height: 1.45; flex: 1; }
 .bonus-timer {
@@ -2217,6 +2419,296 @@ button, input, select { font: inherit; color: inherit; }
 @media (max-width: 380px) {
   .crash-chips { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .crash-chips .chip-max { grid-column: span 3; }
+}
+
+/* =====================================================================
+   14 PLINKO
+   Canvas mit Stiften und Kugeln, darunter die Multiplikatorleiste. Beide
+   teilen sich denselben Raster­abstand: js/plinko.js schreibt den seitlichen
+   Rand des Spielfelds nach --plinko-pad, damit Feld 1 auch wirklich unter
+   der ersten Rutsche liegt. Farben kommen aus den --plinko-… Tokens.
+   ===================================================================== */
+
+.plinko-layout {
+  flex: 1; display: grid; gap: 20px; align-items: start;
+  grid-template-columns: 330px minmax(0, 1fr);
+  padding: 20px clamp(16px, 3vw, 34px) 34px;
+  width: min(1280px, 100%); margin-inline: auto;
+}
+
+/* --- Seitenpanel --- */
+.plinko-panel {
+  display: grid; gap: 20px; padding: 20px; border-radius: 18px;
+  border: 1px solid var(--gold-line);
+  background: linear-gradient(180deg, var(--panel-1), var(--panel-2));
+  box-shadow: var(--shadow-md);
+}
+.plinko-step { display: grid; gap: 10px; }
+.plinko-step-title {
+  font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--gold);
+  display: flex; align-items: center; gap: 9px; margin: 0;
+}
+.plinko-step-no {
+  width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 11px; font-weight: 800; color: var(--on-gold);
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+}
+.plinko-step-text { font-size: 12.5px; color: var(--muted); line-height: 1.55; }
+
+/* --- Schwierigkeit --- */
+.risk-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.risk-option {
+  padding: 11px 6px; border-radius: 11px; cursor: pointer; text-align: center;
+  border: 1.5px solid var(--edge); background: var(--surface); color: var(--muted);
+  font-size: 11.5px; font-weight: 800; letter-spacing: .1em;
+  box-shadow: inset 0 1px 0 var(--edge-top);
+  transition: transform .14s, background .18s, border-color .18s, box-shadow .18s, color .18s;
+}
+.risk-option:hover:not(:disabled) {
+  border-color: var(--edge-hi); background: var(--surface-hi);
+  color: var(--text); transform: translateY(-1px);
+}
+.risk-option:active:not(:disabled) { transform: translateY(1px) scale(.99); }
+.risk-option.is-active {
+  color: var(--on-gold); border-color: var(--gold-bright);
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+  box-shadow: 0 0 0 2px var(--edge-glow), inset 0 1px 0 var(--sheen);
+}
+
+/* --- Einsatz (gleiche Jetons wie beim Crash) --- */
+.plinko-chips {
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px; justify-items: center;
+}
+.plinko-chips .chip {
+  width: 100%; max-width: 66px; height: auto; aspect-ratio: 1;
+  font-size: 12px; font-weight: 800; border-width: 2.5px;
+  transition: transform .18s cubic-bezier(.2, .9, .3, 1.2), box-shadow .18s, border-color .18s;
+}
+.plinko-chips .chip:hover:not(:disabled) { transform: translateY(-3px) scale(1.04); }
+.plinko-chips .chip.is-active {
+  transform: translateY(-4px) scale(1.06);
+  border-color: var(--edge-hi);
+  box-shadow: 0 0 0 3px var(--edge-glow), 0 10px 20px var(--press),
+              inset 0 0 0 3px var(--sheen);
+}
+.plinko-chips .chip-max {
+  grid-column: span 4; width: 100%; max-width: none;
+  aspect-ratio: auto; min-height: 54px; border-radius: 999px;
+  display: grid; place-items: center; gap: 1px;
+}
+.plinko-chips .chip-max b { font-size: 14px; letter-spacing: .16em; }
+.plinko-chips .chip-max small { font-size: 11px; opacity: .85; }
+
+.plinko-custom-row { display: flex; gap: 8px; }
+.plinko-custom-row input { flex: 1; min-width: 0; height: 42px; font-size: 14px; }
+.plinko-custom-row .btn { height: 42px; padding-inline: 16px; }
+.plinko-bet-line {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted);
+  padding: 11px 14px; border-radius: 12px;
+  border: 1.5px solid var(--gold-line-hi); background: var(--sunken);
+}
+.plinko-bet-line b {
+  color: var(--accent-text); font-size: 19px; letter-spacing: 0;
+  font-variant-numeric: tabular-nums; text-transform: none;
+}
+
+/* --- Bilanz (einklappbar wie bei Blackjack und Crash) --- */
+.plinko-stats-step { gap: 0; }
+.plinko-stats-toggle {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  width: 100%; padding: 10px 12px; cursor: pointer; text-align: left;
+  border-radius: 11px; border: 1.5px solid var(--edge);
+  background: var(--surface); color: inherit;
+  transition: border-color .18s, background .18s;
+}
+.plinko-stats-toggle:hover { border-color: var(--edge-hi); background: var(--surface-hi); }
+.plinko-stats-toggle:focus-visible { outline: 2px solid var(--edge-hi); outline-offset: 2px; }
+.plinko-caret {
+  color: var(--gold); font-size: 13px; line-height: 1;
+  transition: transform .28s cubic-bezier(.4, 0, .2, 1);
+}
+.plinko-stats-toggle.is-open .plinko-caret { transform: rotate(180deg); }
+.plinko-stats-wrap {
+  display: grid; grid-template-rows: 0fr; opacity: 0;
+  transition: grid-template-rows .3s cubic-bezier(.4, 0, .2, 1), opacity .2s;
+}
+.plinko-stats-wrap.is-open { grid-template-rows: 1fr; opacity: 1; }
+.plinko-stats-inner { overflow: hidden; min-height: 0; }
+.plinko-stats-wrap.is-open .plinko-stats-inner { padding-top: 10px; }
+.plinko-stats { display: grid; gap: 5px; }
+.plinko-stats div {
+  display: flex; justify-content: space-between; gap: 10px;
+  font-size: 12px; color: var(--muted);
+  padding: 5px 8px; border-radius: 7px; background: var(--surface);
+  border: 1px solid var(--line);
+}
+.plinko-stats b { color: var(--text); font-variant-numeric: tabular-nums; }
+
+/* --- Bühne --- */
+.plinko-stage { display: grid; gap: 14px; justify-items: stretch; }
+
+.plinko-recent-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.plinko-recent-label {
+  font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted);
+  flex: none;
+}
+.plinko-recent { display: flex; gap: 6px; flex-wrap: wrap; }
+.plinko-recent-empty { font-size: 11.5px; color: var(--muted); }
+.plinko-pill {
+  font-size: 11px; font-weight: 800; font-variant-numeric: tabular-nums;
+  padding: 4px 9px; border-radius: 999px; border: 1.5px solid var(--line-hi);
+  background: var(--sunken); color: var(--muted); white-space: nowrap;
+}
+.plinko-pill.is-low { color: var(--loss); border-color: color-mix(in srgb, var(--loss) 45%, transparent); }
+.plinko-pill.is-mid { color: var(--accent-text); border-color: var(--gold-line-hi); }
+.plinko-pill.is-high {
+  color: var(--on-gold); border-color: var(--gold);
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+}
+
+/* --- Spielfeld --- */
+/* Das Brett bekommt genau das Seitenverhältnis, das 17 Rutschen und
+   16 Stiftreihen brauchen – dadurch bleibt links und rechts nur ein
+   schmaler Rand und die Kugeln werden so groß wie möglich. */
+.plinko-board {
+  display: grid; gap: 8px;
+  width: 100%; max-width: 660px; margin-inline: auto;
+}
+#plinko-canvas {
+  display: block; width: 100%; aspect-ratio: 100 / 92;
+  border-radius: 20px 20px 12px 12px;
+  border: 1px solid var(--gold-line-hi);
+  background: var(--felt-900);
+  box-shadow: var(--shadow-lg), inset 0 0 60px rgba(0, 0, 0, .35);
+}
+
+/* Die Leiste hat genauso viele Spalten wie das Brett Rutschen –
+   --plinko-pad kommt aus js/plinko.js und hält beide deckungsgleich. */
+.plinko-slots {
+  display: grid; grid-template-columns: repeat(17, minmax(0, 1fr));
+  gap: clamp(1px, .3vw, 4px);
+  padding-inline: var(--plinko-pad, 12px);
+  /* Schriftgröße hängt an der Breite der Leiste, nicht am Bildschirm –
+     dadurch passt "110×" auf jedem Gerät genau in sein Feld. */
+  container-type: inline-size;
+}
+.plinko-slot {
+  --slot-c: var(--plinko-slot-mid);
+  display: grid; place-items: center; min-width: 0; white-space: nowrap; overflow: hidden;
+  padding: 7px 0; border-radius: 7px;
+  font-size: clamp(6px, 2.25cqi, 11.5px); font-weight: 800; letter-spacing: -.03em;
+  font-variant-numeric: tabular-nums; line-height: 1.1;
+  color: var(--plinko-slot-ink);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--slot-c) 86%, #fff), var(--slot-c));
+  /* Rand als innerer Schatten statt als border: so bleibt jedes Zeichen
+     Platz im Feld, auch wenn es auf dem Handy nur 18 px breit ist. */
+  border: 0;
+  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, .3),
+              inset 0 0 0 1px color-mix(in srgb, var(--slot-c) 60%, #000),
+              0 2px 0 color-mix(in srgb, var(--slot-c) 58%, #000);
+  transition: transform .14s, box-shadow .2s, filter .2s;
+}
+.plinko-slot.is-wide { font-size: clamp(5.6px, 1.95cqi, 10.5px); }
+/* Die beiden äußersten Felder je Seite sind die Hauptgewinne. */
+.plinko-slot.is-top {
+  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, .4),
+              inset 0 0 0 1px color-mix(in srgb, var(--slot-c) 60%, #000),
+              0 2px 0 color-mix(in srgb, var(--slot-c) 58%, #000),
+              0 0 0 1.5px var(--gold-line-hi);
+}
+.plinko-slot.is-hit { animation: plinko-hit .58s cubic-bezier(.2, .9, .3, 1.2); z-index: 1; }
+.plinko-slot.is-win {
+  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, .42), 0 0 0 2px var(--win),
+              0 8px 18px var(--press);
+}
+@keyframes plinko-hit {
+  0% { transform: translateY(0) scaleY(1); filter: brightness(1); }
+  20% { transform: translateY(6px) scaleY(.82); filter: brightness(1.55); }
+  58% { transform: translateY(-3px) scaleY(1.05); filter: brightness(1.2); }
+  100% { transform: none; filter: brightness(1); }
+}
+
+/* --- Laufende Werte --- */
+.plinko-live { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.plinko-live-item {
+  display: grid; gap: 3px; padding: 10px 12px; border-radius: 12px;
+  border: 1px solid var(--line); background: var(--surface); text-align: center;
+}
+.plinko-live-item .stat-value { font-size: 18px; font-variant-numeric: tabular-nums; }
+.plinko-live-item .stat-value.is-win { color: var(--win); }
+.plinko-live-item .stat-value.is-zero { color: var(--loss); }
+.plinko-stage.is-live .plinko-live-item .stat-value { transition: color .2s; }
+
+/* --- Ergebnis --- */
+.plinko-result {
+  display: grid; gap: 3px; justify-items: center; text-align: center;
+  padding: 12px 16px; border-radius: 14px;
+  border: 1.5px solid var(--line-hi);
+  background: linear-gradient(180deg, var(--panel-1), var(--panel-2));
+}
+.plinko-result strong { font-size: 22px; letter-spacing: .02em; font-variant-numeric: tabular-nums; }
+.plinko-result span { font-size: 12.5px; color: var(--muted); }
+.plinko-result b { color: var(--text); }
+.plinko-result-net { font-size: 18px !important; font-weight: 800; font-variant-numeric: tabular-nums; }
+.plinko-result.is-win { border-color: var(--win); }
+.plinko-result.is-win strong, .plinko-result.is-win .plinko-result-net { color: var(--win); }
+.plinko-result.is-loss { border-color: var(--loss); }
+.plinko-result.is-loss strong, .plinko-result.is-loss .plinko-result-net { color: var(--loss); }
+.plinko-result.is-even { border-color: var(--gold-line-hi); }
+.plinko-result.is-even strong, .plinko-result.is-even .plinko-result-net { color: var(--accent-text); }
+
+/* --- Steuerung --- */
+.plinko-actions { display: grid; gap: 10px; }
+.plinko-actions .btn-lg { min-height: 58px; letter-spacing: .12em; }
+.plinko-hint { font-size: 12px; color: var(--muted); text-align: center; min-height: 1.2em; }
+
+/* --- Vorschaubild im Spielhub --- */
+.game-art-plinko { place-items: center; }
+.art-plinko { width: 74%; height: auto; overflow: visible; }
+.art-plinko-pin { fill: var(--plinko-pin); }
+.art-plinko-ball { fill: var(--plinko-ball); stroke: var(--plinko-ball-edge); stroke-width: 1.4; }
+.art-plinko-slot-1 { fill: var(--plinko-slot-high); }
+.art-plinko-slot-2 { fill: var(--plinko-slot-mid); }
+.art-plinko-slot-3 { fill: var(--plinko-slot-low); }
+
+/* --- Responsive --- */
+@media (max-width: 1080px) {
+  .plinko-layout { grid-template-columns: 300px minmax(0, 1fr); }
+}
+@media (max-width: 900px) {
+  .plinko-layout { grid-template-columns: minmax(0, 1fr); }
+  .plinko-panel { order: 2; }
+  .plinko-stage { order: 1; }
+  /* Der Titel bleibt auch auf dem Handy stehen – oben also weiterhin
+     Zurück, Plinko und Guthaben. */
+  #screen-plinko .topbar-brand { display: flex; font-size: 11px; letter-spacing: .08em; }
+  #screen-plinko .topbar-brand .brand-mark { display: none; }
+}
+@media (max-width: 640px) {
+  /* Auf dem Handy bekommt das Brett die volle Breite – dadurch bleiben
+     Kugeln, Stifte und Multiplikatoren groß genug zum Erkennen. */
+  .plinko-layout { padding: 14px 10px 28px; gap: 14px; }
+  #plinko-canvas { border-radius: 16px 16px 10px 10px; }
+  .plinko-slots { gap: 1px; }
+  .plinko-slot { padding: 6px 0; border-radius: 5px; }
+  .plinko-chips { gap: 8px; }
+  .plinko-chips .chip { max-width: 62px; font-size: 11px; }
+  .plinko-chips .chip-max { max-width: none; width: 100%; min-height: 50px; }
+  .plinko-recent-row { gap: 8px; }
+  .plinko-recent-label { width: 100%; }
+  .plinko-live { gap: 8px; }
+  .plinko-live-item { padding: 8px 6px; }
+  .plinko-live-item .stat-value { font-size: 14px; }
+  .plinko-live-item .stat-label { font-size: 9.5px; }
+  .plinko-result strong { font-size: 19px; }
+}
+@media (max-width: 380px) {
+  .plinko-chips { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .plinko-chips .chip-max { grid-column: span 3; }
+  .risk-options { gap: 7px; }
+  .risk-option { font-size: 10.5px; padding: 10px 4px; letter-spacing: .06em; }
 }
 
 @media (prefers-reduced-motion: reduce) {
