@@ -292,6 +292,95 @@
   </main>
 </section>
 
+<!-- ===================== Blackjack ===================== -->
+<section id="screen-blackjack" class="screen" hidden>
+  <header class="topbar">
+    <button class="icon-btn" data-nav="games" title="Zurück zur Spielauswahl">‹ Spiele</button>
+    <div class="topbar-brand">
+      <span class="brand-mark brand-mark-sm" aria-hidden="true"></span>
+      <span>BLACKJACK</span>
+    </div>
+    <div class="topbar-right">
+      <div class="stat stat-balance">
+        <span class="stat-label">Guthaben</span>
+        <strong class="stat-value" data-balance>—</strong>
+      </div>
+    </div>
+  </header>
+
+  <main class="bj-layout">
+    <!-- Einsätze und Statistik -->
+    <aside class="bj-panel" id="bj-panel">
+      <section class="bj-step">
+        <h2 class="bj-step-title"><span class="bj-step-no">1</span> Jeton</h2>
+        <div class="chips bj-chips" id="bj-chips"><!-- aus js/blackjack.js --></div>
+        <div class="chip-custom bj-custom-row">
+          <label for="bj-custom" class="sr-only">Eigener Einsatz</label>
+          <input id="bj-custom" type="number" min="1" step="1" placeholder="Eigener Betrag" inputmode="numeric" />
+          <button class="btn btn-ghost btn-sm" id="bj-custom-btn" type="button">Wählen</button>
+        </div>
+      </section>
+
+      <section class="bj-step">
+        <h2 class="bj-step-title"><span class="bj-step-no">2</span> Plätze</h2>
+        <p class="bj-step-text">Tippe auf einen Platz, um den Jeton dort abzulegen. Bis zu fünf Hände gleichzeitig.</p>
+        <div class="bj-bet-actions">
+          <button class="btn btn-ghost btn-sm" id="bj-repeat" type="button" disabled>Wiederholen</button>
+          <button class="btn btn-ghost btn-sm" id="bj-clear" type="button" disabled>Löschen</button>
+        </div>
+        <p class="bj-bet-line">Gesamteinsatz: <b id="bj-total">—</b></p>
+      </section>
+
+      <button class="btn btn-gold btn-block btn-lg" id="bj-deal" type="button" disabled>GEBEN</button>
+      <p class="bj-hint" id="bj-hint">—</p>
+
+      <section class="bj-step bj-stats-step">
+        <h2 class="bj-step-title">Deine Blackjack-Bilanz</h2>
+        <div class="bj-stats" id="bj-stats"><!-- aus js/blackjack.js --></div>
+      </section>
+    </aside>
+
+    <!-- Tisch -->
+    <section class="bj-table">
+      <div class="bj-felt">
+        <!-- Kartenschuh -->
+        <div class="bj-shoe" id="bj-shoe" title="Kartenschuh mit 6 Decks">
+          <div class="bj-shoe-box">
+            <div class="bj-shoe-fill" id="bj-shoe-fill"></div>
+            <span class="bj-shoe-riffle" aria-hidden="true"></span>
+            <span class="bj-shoe-riffle" aria-hidden="true"></span>
+            <span class="bj-shoe-riffle" aria-hidden="true"></span>
+          </div>
+          <span class="bj-shoe-label" id="bj-shoe-label">—</span>
+          <span class="bj-shoe-cap">SCHUH · 6 DECKS</span>
+        </div>
+
+        <!-- Dealer -->
+        <div class="bj-dealer">
+          <span class="bj-seat-tag bj-dealer-tag">Dealer</span>
+          <div class="bj-hand-cards" id="bj-dealer-cards"></div>
+          <span class="bj-badge bj-dealer-total" id="bj-dealer-total">—</span>
+        </div>
+
+        <p class="bj-rule-arc">BLACKJACK ZAHLT 3 ZU 2 · DEALER ZIEHT BIS 16 UND BLEIBT BEI 17 STEHEN</p>
+
+        <!-- Plätze / Hände -->
+        <div class="bj-seats is-betting" id="bj-seats"><!-- aus js/blackjack.js --></div>
+      </div>
+
+      <div class="bj-result" id="bj-result" hidden></div>
+
+      <div class="bj-actions is-idle" id="bj-actions">
+        <button class="btn btn-gold bj-action" id="bj-hit" type="button" disabled>ZIEHEN</button>
+        <button class="btn btn-ghost bj-action" id="bj-stand" type="button" disabled>HALTEN</button>
+        <button class="btn btn-ghost bj-action" id="bj-double" type="button" disabled>VERDOPPELN</button>
+        <button class="btn btn-ghost bj-action" id="bj-split" type="button" disabled>TEILEN</button>
+      </div>
+      <button class="btn btn-ghost bj-new" id="bj-new" type="button" hidden>Neue Runde</button>
+    </section>
+  </main>
+</section>
+
 <!-- ===================== Shop ===================== -->
 <section id="screen-shop" class="screen" hidden>
   <div class="page-card">
@@ -348,9 +437,21 @@
     <div class="setting-row">
       <div>
         <h3>Sound</h3>
-        <p>Dezente Klicks beim Setzen und beim Lauf der Kugel.</p>
+        <p>Dezente Klicks beim Setzen, beim Lauf der Kugel und beim Geben der Karten.</p>
       </div>
       <label class="switch"><input type="checkbox" id="set-sound" /><span></span></label>
+    </div>
+
+    <div class="setting-row">
+      <div>
+        <h3>Lautstärke</h3>
+        <p>Gilt für alle Klänge, auch für die Karten beim Blackjack.</p>
+      </div>
+      <div class="volume-row">
+        <input class="volume-slider" id="set-volume" type="range" min="0" max="100" step="5"
+               value="70" aria-label="Lautstärke" />
+        <output class="volume-value" id="set-volume-value">70 %</output>
+      </div>
     </div>
 
     <div class="setting-row">
@@ -414,7 +515,7 @@
       <li>Dein virtuelles Guthaben</li>
       <li>Spielstatistiken (Anzahl Runden, Gesamteinsatz, Gewinne, Verluste, höchster Gewinn)</li>
       <li>Die letzten abgeschlossenen Runden (Gewinnzahl, Einsatz, Ergebnis)</li>
-      <li>Lokale Anzeigeeinstellungen wie Sound und Animationstempo</li>
+      <li>Lokale Anzeigeeinstellungen wie Sound, Lautstärke und Animationstempo</li>
     </ul>
     <p>Mehr wird nicht erhoben. Keine IP-Auswertung, kein Profiling, keine Weitergabe an Dritte.</p>
 
