@@ -166,10 +166,13 @@ Regelwerk – im ganzen Spiel einheitlich, nachlesbar im Kopf von
 * **Verdoppeln** auf die ersten beiden Karten, danach genau eine Karte
   (sie wird quer gelegt). Vorher fragt das Spiel, ob diese Karte **offen**
   oder **verdeckt** liegen soll – siehe unten.
-* **Teilen** bei gleichem Kartenwert – Bube + Dame zählt also auch. Geteilte
-  Asse bekommen genau eine Karte. Geteilte Hände können erneut geteilt
-  werden, bis die Grenze von **drei Händen** erreicht ist. Diese Grenze gilt
-  hart: Startplätze und Splits zusammen sind nie mehr als drei.
+* **Teilen** entscheidet der **Kartenwert**, nicht der Kartenname: Bube, Dame
+  und König zählen alle 10, also sind K + D, B + K, D + B und 10 + K gültige
+  Paare (`canSplitPair` vergleicht `cardValue`). Geteilte Asse bekommen genau
+  eine Karte. Geteilte Hände können erneut geteilt werden, bis die Grenze von
+  **drei Händen** erreicht ist. Diese Grenze gilt hart: Startplätze und Splits
+  zusammen sind nie mehr als drei. Ist Teilen gerade nicht möglich, sagt der
+  Knopf per Hinweistext, woran es liegt (Handgrenze oder fehlendes Guthaben).
 * Nach einem Split ist Ass + Zehn **kein** Blackjack, sondern eine normale 21.
 * Der Gesamteinsatz wird beim Geben abgebucht **und sofort gespeichert** –
   ein Neuladen macht die Runde nicht rückgängig. Wer mittendrin geht,
@@ -195,16 +198,38 @@ Vier Stufen in den Einstellungen (`CARD_SPEEDS` in `js/blackjack.js`):
 
 | Stufe | Pause je Karte | Flug | Umdrehen |
 | --- | --- | --- | --- |
-| LANGSAM | 760 ms | 700 ms | 620 ms |
-| MITTEL (Standard) | 500 ms | 480 ms | 430 ms |
-| SCHNELL | 300 ms | 300 ms | 280 ms |
-| EXTREM SCHNELL | 150 ms | 170 ms | 150 ms |
+| LANGSAM | 760 ms | 700 ms | 900 ms |
+| MITTEL (Standard) | 500 ms | 480 ms | 700 ms |
+| SCHNELL | 300 ms | 300 ms | 480 ms |
+| EXTREM SCHNELL | 150 ms | 170 ms | 300 ms |
+
+`MIN_FLIP_MS = 300` ist die Untergrenze: Auch die schnellste Stufe dreht die
+Karte noch sichtbar um, sie springt nie einfach um.
 
 Die Stufe wird in den lokalen Einstellungen gespeichert und übersteht das
 Schließen der Seite. Sie setzt nur `--bj-move-ms` / `--bj-flip-ms` am
 Bildschirm und die Wartezeiten zwischen den Karten. **Auf das Ergebnis hat
 sie keinen Einfluss**: `shoe.draw()` läuft immer vor der Animation, die
 Reihenfolge im Schuh steht seit dem Mischen fest.
+
+#### Umdrehen
+
+Eine verdeckte Karte steckt von Anfang an vollständig im DOM: `.bj-card-inner`
+steht auf `rotateY(180deg)`, Vorder- und Rückseite haben
+`backface-visibility: hidden`. `flipCardElement()` nimmt nur `is-down` weg –
+CSS dreht die Karte dann über `--bj-flip-ms` zurück auf 0°. Das Kartenbild
+wird dabei nie ausgetauscht, es war nur weggedreht.
+
+Damit das nach einer echten Karte aussieht:
+
+* Der Fluchtpunkt hängt an der Kartenbreite (`perspective: --card-w · 3,2`) –
+  ein fester Wert wie 900 px wirkt bei einer 90 px breiten Karte fast wie eine
+  Parallelprojektion, die Karte würde nur schmaler statt räumlich.
+* Für die Dauer der Drehung trägt die Karte `is-flipping`: sie hebt sich
+  leicht an und ein feiner Lichtstreifen wandert über sie hinweg.
+* Der Dealer zieht erst weiter, wenn seine verdeckte Karte fertig gedreht ist
+  (`revealHole()` wartet `flip · 1,05`). Dasselbe gilt für verdeckt gelegte
+  Double-Down-Karten.
 
 #### Karten
 
@@ -323,22 +348,49 @@ das für jede Stufe. Alle vier liegen bei rund 97 %, genau wie Roulette,
 Blackjack, Crash und Mines. Keine Stufe ist also besser, sie unterscheiden sich
 nur im Risiko.
 
-#### Brett und Bewegung
+#### Feste Pyramide
 
-Reihe `r` hat `r + 3` Stifte im Abstand `s`; die Kugel startet mittig und wird
-an jedem Stift um `s/2` versetzt. Nach 16 Reihen steht sie genau über der Mitte
-von Feld `k` bei `x = Mitte + (k − 8) · s`. Die Multiplikatorleiste im DOM
-bekommt denselben Rand (`--plinko-pad` schreibt js/plinko.js) und liegt dadurch
-exakt unter den Rutschen.
+Reihe `r` hat `r + 3` Stifte im Abstand `s` – Reihe 0 also 3, Reihe 15 genau 18.
+18 Stifte lassen 17 Lücken, das sind die 17 Felder. Diese Struktur ist fest
+verdrahtet (`pinsInRow`, `pinX`, `rowY`) und wird **nie** zufällig erzeugt: Bei
+gleicher Fläche kommen immer exakt dieselben Positionen heraus, auf dem Handy
+wird dasselbe Muster nur proportional kleiner. Die Schwierigkeit ändert
+ausschließlich die Multiplikatoren unten, nie die Stifte.
 
-Zwischen zwei Stiften fliegt die Kugel auf einer Wurfparabel
-(`hopCoefficients`): kurzer Absprung nach oben, dann beschleunigt nach unten.
-Die Reihen werden nach unten hin schneller, ein kompletter Fall dauert rund
-zwei Sekunden. Stifte, Kugeln und Farben liegen auf einem Canvas und kommen aus
-den `--plinko-…` Tokens des aktiven Designs.
+`plinkoGeometry(breite, höhe)` rechnet alle Maße aus der Fläche und ist ohne
+DOM testbar. Nach jeder Größenänderung wird sofort neu gezeichnet – `canvas.width`
+zu setzen löscht das Bild, ohne dieses Zeichnen wäre das Brett danach leer.
+Die Multiplikatorleiste im DOM bekommt denselben Seitenrand (`--plinko-pad`)
+und liegt dadurch exakt unter den Rutschen.
+
+#### Bewegung: echte Kollisionen
+
+Die Kugel wird Schritt für Schritt gerechnet (fester Zeitschritt 1/240 s):
+Schwerkraft, Geschwindigkeit, Kollisionsradius `hitR = Stift + Kugel`,
+Abprall mit Dämpfung (`RESTITUTION`) und Reibung entlang der Oberfläche
+(`TANGENT_LOSS`). Bei jeder Berührung wird die Kugel exakt auf die
+Stiftoberfläche gesetzt – sie kann nicht im Stift stecken bleiben, nicht
+hindurchlaufen und nicht auf der anderen Seite auftauchen.
+
+Damit das Ergebnis trotzdem exakt dem vorher gezogenen Weg entspricht, wird an
+der jeweils fälligen Reihe die *Auftreffseite* auf die vorbestimmte Schulter
+gedreht – aber nur so weit wie nötig (`CONTACT_MIN`, etwa 18°). Liegt die Kugel
+ohnehin schon richtig, bleibt die echte Normale stehen. Eine sanfte Führung
+(`GUIDE`) hält sie auf der Spur, ein seitlicher Mindestimpuls (`SIDE_KICK`)
+macht den Abprall sichtbar. Sichtbar ist dadurch immer:
+**fallen → auftreffen → abprallen → zur Seite → weiterfallen**.
+
+Ein kompletter Fall dauert rund drei Sekunden. Tests prüfen über tausende
+Läufe und acht Bildschirmgrößen: jede Kugel berührt alle 16 Stifte, keine
+steckt je in einem Stift, und jede landet im vorher gezogenen Feld.
+
+Stifte, Kugeln und Farben liegen auf einem Canvas und kommen aus den
+`--plinko-…` Tokens des aktiven Designs.
 
 Beim Verlassen des Bildschirms und beim Schließen der Seite werden fliegende
-Kugeln sofort abgerechnet – es kann kein Gewinn verloren gehen.
+Kugeln sofort abgerechnet – es kann kein Gewinn verloren gehen. Ändert sich
+die Fenstergröße mitten im Fall, werden laufende Kugeln maßstabsgerecht
+mitgerechnet.
 
 ### Ein neues Minigame ergänzen
 
@@ -405,17 +457,28 @@ beide bekommen.
 | Classic Green | — | Standard, tiefes Grün mit Gold |
 | Noir | 15.000 € | Schwarz mit Platinakzenten |
 | Royal Bordeaux | 30.000 € | Weinrot mit Messing |
-| Ivory & Gold | 100.000 € | Helles Design in Creme und Gold |
+| Platinum | 75.000 € | Kühles Weiß, Grau und Graphit, keine Buntfarbe |
+| Ivory & Gold | 100.000 € | Elfenbein mit kräftigem Altgold |
 
 Gekaufte Designs gehören dauerhaft zum Konto und werden nie doppelt bezahlt.
 
-Im Shop gibt es drei Boni:
+Im Shop gibt es fünf Boni:
 
 | Bonus | Betrag | Zyklus |
 | --- | ---: | --- |
+| Starter-Bonus | 150.000 € | **einmalig pro Konto** |
+| Notfallguthaben | 500 € | nur bei genau 0 € Guthaben |
 | Tagesbonus | 10.000 € | täglich 00:00 Uhr (GMT+2) |
 | Zeitbonus | 2.000 € | 4 Stunden nach der letzten Abholung |
 | Wochenbonus | 25.000 € | montags 00:00 Uhr (GMT+2) |
+
+Der **Starter-Bonus** ist als `once: true` in `js/bonus.js` markiert. Sobald
+`bonus_starter` in der Datenbank gesetzt ist, meldet `bonusStatus()` ihn als
+`done` – `renderBonusCards()` baut das Kartenfeld dann ohne ihn neu auf, die
+Karte ist also wirklich weg und nicht nur ausgegraut. Serverseitig lässt
+`claim_bonus('starter')` ihn nur zu, solange `bonus_starter IS NULL` ist,
+geprüft unter Zeilensperre – zwei gleichzeitige Anfragen ergeben deshalb
+150.000 €, nie 300.000 €.
 
 Prüfen, Gutschreiben und Markieren passiert in **einer** Datenbankfunktion
 (`claim_bonus`) mit Zeilensperre. Maßgeblich ist immer `now()` auf dem Server –
@@ -479,6 +542,7 @@ Bei der 0 verlieren alle Außenwetten – daraus ergibt sich der Hausvorteil von
 ```
 index.html            Alle Bildschirme (Login, Menü, Spielauswahl, Spiel, Shop, Einstellungen, Datenschutz)
 css/style.css         Komplettes Design mit fünf Themes (Classic, Noir, Royal, Platinum, Ivory)
+                      Markenzeichen: poliertes Pik auf Bordeaux (.brand-mark)
 js/
   config.js           Supabase-Zugang, Startguthaben, Jeton-Werte
   catalog.js          Minigames und kaufbare Designs – hier wird erweitert
@@ -501,6 +565,7 @@ js/
 supabase/schema.sql                Tabellen, RLS-Policies, Trigger, Löschfunktion
 supabase/update-2-gamertag-bonus.sql  Gamertag-Spalte, Bonus-Spalten und -Funktionen
 supabase/update-3-crash-bailout.sql   Notfallguthaben als serverseitiger Bonus
+supabase/update-4-starter-bonus.sql   einmaliger Starter-Bonus (150.000 €)
 build/build.mjs       Baut dist/standalone.html (eine einzige Datei)
 tests/                Logik-Tests (Node) und End-to-End-Tests (Browser)
 ```
@@ -520,7 +585,7 @@ python3 tests/e2e_mines.py     # Mines: Ablauf, Cash-Out, Verlust, Persistenz
 python3 tests/e2e_account.py   # Gamertag, Namensfilter, Boni und Countdowns
 python3 tests/e2e_blackjack.py # Blackjack: Geben, Ziehen, Verdoppeln, Teilen, Auszahlung
 python3 tests/e2e_crash.py     # Crash: Kurve, Cash-Out, Sofort-Crash, Notfallguthaben
-python3 tests/e2e_plinko.py    # Plinko: Wege, Auszahlungen, viele Kugeln, alle Designs
+python3 tests/e2e_plinko.py    # Plinko: Pyramide, Abprall, Auszahlungen, viele Kugeln
 ```
 
 Die Logik-Tests prüfen unter anderem:
