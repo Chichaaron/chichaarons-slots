@@ -124,6 +124,10 @@
   --shadow-md: 0 10px 30px rgba(0, 0, 0, .4);
   --ring: 0 0 0 2px var(--gold-line-hi);
 
+  /* Pik-Symbol des Logos als Maske – derselbe Vektorpfad wie auf den
+     Spielkarten (js/cards.js), damit Marke und Karten zusammenpassen. */
+  --spade-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 5C50 5 6 35.5 6 60c0 13.8 10.2 23.5 22.4 23.5 8 0 15-4.1 19-10.7-1 11.6-5.8 19.6-15.8 23.7h36.8c-10-4.1-14.8-12.1-15.8-23.7 4 6.6 11 10.7 19 10.7C83.8 83.5 94 73.8 94 60 94 35.5 50 5 50 5z' fill='%23000'/%3E%3C/svg%3E");
+
   --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
@@ -229,25 +233,25 @@
 /* --- Platinum: kühles Weiß, Grau und Graphit. Keine Buntfarbe als Akzent,
        dafür klare, gut sichtbare Kanten auf jeder hellen Fläche. --- */
 :root[data-theme="platinum"] {
-  --felt-950: #f7f8fa; --felt-900: #f1f3f6; --felt-800: #e9ecf1;
-  --felt-700: #dde1e8; --felt-600: #ccd2db; --felt-500: #b6bdc8;
+  --felt-950: #eff1f5; --felt-900: #e6e9ef; --felt-800: #dbdfe7;
+  --felt-700: #c9ced9; --felt-600: #b3bac7; --felt-500: #99a1b0;
 
   /* Statt Gold trägt hier Graphit den Akzent – dunkel auf hell ist der
      stärkste Kontrast, den ein weißes Design haben kann. */
   --gold: #3a4049; --gold-bright: #5c6470; --gold-dim: #878e99; --accent-text: #22262d;
-  --red: #9b2430; --red-bright: #b8303d; --black-cell: #21252b;
-  --text: #14171b; --muted: #6b727c; --win: #1c6b45; --loss: #a32732;
+  --red: #9b2430; --red-bright: #b8303d; --black-cell: #1b1f25;
+  --text: #12151a; --muted: #5f6774; --win: #1c6b45; --loss: #a32732;
   --on-gold: #f7f8fa;
 
-  --bg-base: #e9ebef; --bg-glow-1: #fdfdfe; --bg-glow-2: #d6dae1;
-  --surface: rgba(24, 30, 40, .05);
-  --surface-hi: rgba(24, 30, 40, .1);
-  --sunken: rgba(255, 255, 255, .82);
-  --line: rgba(24, 30, 40, .17);
-  --line-hi: rgba(24, 30, 40, .32);
-  --sheen: rgba(255, 255, 255, .75);
-  --panel-1: rgba(255, 255, 255, .93); --panel-2: rgba(242, 244, 247, .97);
-  --bar-bg: rgba(250, 251, 253, .9); --scrim: rgba(26, 31, 38, .5);
+  --bg-base: #d9dce3; --bg-glow-1: #f3f5f8; --bg-glow-2: #bcc2cd;
+  --surface: rgba(20, 26, 36, .07);
+  --surface-hi: rgba(20, 26, 36, .13);
+  --sunken: rgba(255, 255, 255, .72);
+  --line: rgba(20, 26, 36, .2);
+  --line-hi: rgba(20, 26, 36, .36);
+  --sheen: rgba(255, 255, 255, .78);
+  --panel-1: rgba(252, 253, 254, .93); --panel-2: rgba(229, 232, 238, .97);
+  --bar-bg: rgba(235, 238, 243, .92); --scrim: rgba(22, 27, 34, .55);
   --gold-line: rgba(58, 64, 73, .3);
   --gold-line-hi: rgba(58, 64, 73, .6);
   --gold-soft: rgba(58, 64, 73, .09);
@@ -261,37 +265,37 @@
   --btn-shade: rgba(30, 38, 50, .11);
   --btn-shade-hi: rgba(30, 38, 50, .06);
 
-  --mine-body: #21252b; --mine-spike: #9b2430; --mine-shine: rgba(255, 255, 255, .9);
+  --mine-body: #1b1f25; --mine-spike: #9b2430; --mine-shine: rgba(255, 255, 255, .9);
 
-  --crash-grid: rgba(30, 38, 50, .1);
+  --crash-grid: rgba(30, 38, 50, .13);
   --crash-axis: rgba(58, 64, 73, .42);
   --crash-label: #6b727c;
   --crash-line: #2e343d; --crash-line-hi: #5c6470;
   --crash-fill: rgba(58, 64, 73, .13);
   --crash-ball: #14171b; --crash-bust: #a32732;
 
-  --plinko-felt-1: #ffffff; --plinko-felt-2: #dfe3ea;
-  --plinko-pin: #464d58; --plinko-pin-hi: #aeb5c0;
-  --plinko-pin-ring: rgba(255, 255, 255, .85);
+  --plinko-felt-1: #f5f7fa; --plinko-felt-2: #c6ccd7;
+  --plinko-pin: #ffffff; --plinko-pin-hi: #ffffff;
+  --plinko-pin-ring: rgba(30, 38, 50, .5);
   --plinko-ball: #1d222a; --plinko-ball-hi: #79808c; --plinko-ball-edge: #ffffff;
-  --plinko-slot-low: #767d88; --plinko-slot-mid: #4d545e; --plinko-slot-high: #1c2027;
+  --plinko-slot-low: #6e7683; --plinko-slot-mid: #454c57; --plinko-slot-high: #191d23;
   --plinko-slot-ink: #f7f8fa;
 
   --card-bg: #ffffff; --card-ink: #16191e; --card-red: #9b2430;
-  --card-court: #f1f3f6; --card-edge: rgba(30, 36, 45, .32);
-  --card-back-1: #2e343d; --card-back-2: rgba(255, 255, 255, .5);
+  --card-court: #eef0f4; --card-edge: rgba(30, 36, 45, .34);
+  --card-back-1: #262b33; --card-back-2: rgba(255, 255, 255, .5);
 
-  --board-felt: #dde1e8;
-  --cell-base: rgba(255, 255, 255, .6);
-  --cell-line: rgba(30, 38, 50, .2);
+  --board-felt: #c9ced9;
+  --cell-base: rgba(255, 255, 255, .5);
+  --cell-line: rgba(24, 30, 40, .24);
 
   --wheel-green: #24614a; --wheel-red: #9b2430; --wheel-black: #21252b;
-  --wheel-bowl-1: #f2f4f7; --wheel-bowl-2: #d7dbe2; --wheel-bowl-3: #b4bac5;
-  --wheel-cone-1: #fafbfc; --wheel-cone-2: #e2e6ec; --wheel-cone-3: #c3c9d3;
-  --wheel-rim: #878e99; --wheel-text: #fbfcfd;
+  --wheel-bowl-1: #e8ebf0; --wheel-bowl-2: #c6ccd6; --wheel-bowl-3: #9fa7b4;
+  --wheel-cone-1: #f4f6f9; --wheel-cone-2: #d5dae2; --wheel-cone-3: #b2b9c5;
+  --wheel-rim: #757d8a; --wheel-text: #fbfcfd;
 
-  --shadow-lg: 0 24px 60px rgba(28, 36, 48, .18);
-  --shadow-md: 0 10px 30px rgba(28, 36, 48, .13);
+  --shadow-lg: 0 24px 60px rgba(24, 31, 42, .24);
+  --shadow-md: 0 10px 30px rgba(24, 31, 42, .17);
 }
 
 /* --- Ivory & Gold: Elfenbein als Grundton, Gold als tragendes Material.
@@ -498,22 +502,48 @@ button, input, select { font: inherit; color: inherit; }
   font-variant-numeric: tabular-nums;
 }
 
-/* Markenzeichen */
+/* Markenzeichen: poliertes Pik auf dunklem Bordeaux, schwarz gefasst.
+   Bewusst unabhängig vom Design – eine Marke wechselt nicht die Farbe. */
 .brand { display: flex; align-items: center; gap: 14px; }
 .brand-lg .brand-name { font-size: clamp(21px, 5.6vw, 28px); }
 .brand-mark {
-  width: 44px; height: 44px; border-radius: 50%; flex: none;
+  position: relative; flex: none;
+  width: 44px; height: 44px; border-radius: 50%;
   background:
-    conic-gradient(from 0deg, var(--black-cell) 0 12.5%, var(--red) 0 25%, var(--black-cell) 0 37.5%,
-      var(--red) 0 50%, var(--black-cell) 0 62.5%, var(--red) 0 75%, var(--black-cell) 0 87.5%, var(--red) 0 100%);
-  box-shadow: 0 0 0 2px var(--gold), inset 0 0 0 8px var(--felt-800), 0 6px 18px rgba(0, 0, 0, .5);
-  position: relative;
+    /* Lichtquelle oben links */
+    radial-gradient(circle at 33% 22%, rgba(255, 236, 220, .28) 0%, transparent 44%),
+    /* tiefes Weinrot, zum Rand hin fast schwarz */
+    radial-gradient(circle at 50% 36%, #85182a 0%, #5d1020 44%, #370912 76%, #1d050a 100%);
+  border: 2px solid #070305;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 214, 180, .18),      /* feine warme Innenkante */
+    inset 0 5px 12px rgba(255, 255, 255, .1),      /* Licht von oben */
+    inset 0 -9px 18px rgba(0, 0, 0, .55),          /* Tiefe unten */
+    0 6px 18px rgba(0, 0, 0, .45);
 }
+/* Glanzbogen auf der oberen Wölbung */
+.brand-mark::before {
+  content: ""; position: absolute; inset: 7%; border-radius: 50%; pointer-events: none;
+  background: linear-gradient(184deg,
+    rgba(255, 255, 255, .34) 0%, rgba(255, 255, 255, .08) 30%, transparent 52%);
+}
+/* Das Pik selbst: poliertes Metall mit Lichtkante und Schatten */
 .brand-mark::after {
-  content: ""; position: absolute; inset: 40%; border-radius: 50%;
-  background: linear-gradient(160deg, var(--gold-bright), var(--gold-dim));
+  content: ""; position: absolute; inset: 19%;
+  background: linear-gradient(163deg,
+    #ffffff 0%, #f3eee4 18%, #cdc6b8 38%, #fbf8f1 54%, #d6cfc0 72%, #9a9285 90%, #efeae0 100%);
+  -webkit-mask: var(--spade-mask) center / contain no-repeat;
+  mask: var(--spade-mask) center / contain no-repeat;
+  filter: drop-shadow(0 1px 1.5px rgba(0, 0, 0, .6));
 }
-.brand-mark-sm { width: 24px; height: 24px; box-shadow: 0 0 0 1.5px var(--gold), inset 0 0 0 5px var(--felt-800); }
+.brand-mark-sm {
+  width: 24px; height: 24px; border-width: 1.5px;
+  box-shadow:
+    inset 0 0 0 .8px rgba(255, 214, 180, .2),
+    inset 0 -5px 10px rgba(0, 0, 0, .5),
+    0 3px 9px rgba(0, 0, 0, .4);
+}
+.brand-mark-sm::after { inset: 19%; }
 .brand-name { font-size: clamp(17px, 4.4vw, 21px); letter-spacing: .1em; line-height: 1.08; text-wrap: balance; }
 .brand-sub { font-size: 12px; color: var(--muted); letter-spacing: .04em; margin-top: 2px; }
 
@@ -1038,7 +1068,7 @@ button, input, select { font: inherit; color: inherit; }
 /* --- Boni im Shop --- */
 .bonus-grid {
   display: grid; gap: 12px; margin-bottom: 26px;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(206px, 1fr));
 }
 .bonus-card {
   display: flex; flex-direction: column; gap: 10px; padding: 16px;
@@ -1066,7 +1096,23 @@ button, input, select { font: inherit; color: inherit; }
   font-size: 12px; letter-spacing: .05em; text-transform: uppercase; color: var(--gold);
   line-height: 1.25; overflow-wrap: anywhere;
 }
-.bonus-amount { font-size: 22px; color: var(--accent-text); font-variant-numeric: tabular-nums; }
+/* "EINMALIG" am Starter-Bonus */
+.bonus-badge {
+  display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 99px;
+  font-size: 9px; font-weight: 800; letter-spacing: .12em; white-space: nowrap;
+  color: var(--on-gold); background: linear-gradient(180deg, var(--gold-bright), var(--gold));
+  vertical-align: 1px;
+}
+/* Der einmalige Bonus hebt sich deutlicher ab – es gibt ihn nur ein Mal. */
+.bonus-card-once {
+  border-width: 2px; border-color: var(--edge-hi);
+  background: linear-gradient(160deg, var(--gold-soft), var(--surface-hi));
+}
+.bonus-card-once .bonus-coin { box-shadow: 0 0 0 2px var(--edge-glow), 0 4px 12px var(--press); }
+.bonus-amount {
+  font-size: 21px; color: var(--accent-text);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
 .bonus-blurb { font-size: 11.5px; color: var(--muted); line-height: 1.45; flex: 1; }
 .bonus-timer {
   font-size: 12px; color: var(--muted); text-align: center;
@@ -1871,7 +1917,10 @@ button, input, select { font: inherit; color: inherit; }
   width: var(--card-w); aspect-ratio: 100 / 140; flex: none;
   /* negative Werte über calc – clamp() verlangt min < max */
   margin-left: calc(-1 * var(--overlap));
-  perspective: 900px;
+  /* Fluchtpunkt an der Kartenbreite: eine feste Tiefe von 900 px wirkt bei
+     einer 90 px breiten Karte fast wie eine Parallelprojektion – die Karte
+     würde beim Drehen nur schmaler statt räumlich. */
+  perspective: calc(var(--card-w, 96px) * 3.2);
   transition: transform var(--bj-move-ms, 480ms) cubic-bezier(.22, .85, .3, 1),
               opacity calc(var(--bj-move-ms, 480ms) * .4) linear;
 }
@@ -1887,12 +1936,39 @@ button, input, select { font: inherit; color: inherit; }
 .bj-card-inner {
   position: relative; width: 100%; height: 100%;
   transform-style: preserve-3d;
-  transition: transform var(--bj-flip-ms, 430ms) cubic-bezier(.4, 0, .2, 1);
+  /* etwas Anlauf, kräftige Mitte, weiches Auslaufen – wie eine Hand, die
+     die Karte anhebt und umlegt */
+  transition: transform var(--bj-flip-ms, 700ms) cubic-bezier(.5, .02, .3, 1);
 }
 .bj-card.is-down .bj-card-inner { transform: rotateY(180deg); }
 .bj-card-face {
-  position: absolute; inset: 0; backface-visibility: hidden; border-radius: 8px;
+  position: absolute; inset: 0; backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;      /* Safari */
+  border-radius: 8px;
   box-shadow: 0 5px 12px rgba(0, 0, 0, .4);
+}
+
+/* --- Umdrehen ---------------------------------------------------------
+   js/cards.js setzt für die Dauer der Drehung `is-flipping`. Die Karte hebt
+   sich dabei leicht an und ein feiner Lichtstreifen wandert über sie – so
+   wirkt es wie eine echte Karte, die gewendet wird, und nicht wie ein
+   Bildwechsel. Das Kartenbild selbst steckt von Anfang an im Element. */
+.bj-card.is-flipping { animation: bj-flip-lift var(--bj-flip-ms, 700ms) cubic-bezier(.5, .02, .3, 1); }
+@keyframes bj-flip-lift {
+  0%   { transform: translateY(0) scale(1); }
+  46%  { transform: translateY(-6%) scale(1.07); }
+  100% { transform: translateY(0) scale(1); }
+}
+.bj-card-face::after {
+  content: ''; position: absolute; inset: 0; border-radius: 8px; pointer-events: none;
+  background: linear-gradient(104deg, transparent 28%, rgba(255, 255, 255, .6) 47%,
+                              rgba(255, 255, 255, .1) 58%, transparent 70%);
+  opacity: 0;
+}
+.bj-card.is-flipping .bj-card-face::after { animation: bj-flip-sheen var(--bj-flip-ms, 700ms) ease-out; }
+@keyframes bj-flip-sheen {
+  0%, 100% { opacity: 0; }
+  50% { opacity: .85; }
 }
 .bj-card-front { background: var(--card-bg); overflow: hidden; }
 .bj-card-back {
