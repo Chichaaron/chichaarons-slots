@@ -28,12 +28,19 @@ export const SPOTS = MAX_HANDS;
  * `deal` = Pause zwischen zwei Karten, `move` = Dauer des Gleitflugs aus dem
  * Schuh, `flip` = Dauer der Umdrehbewegung. Alles in Millisekunden.
  */
+/**
+ * Vier Tempostufen. `flip` ist die Dauer der Kartendrehung – auch die
+ * schnellste Stufe dreht die Karte noch sichtbar um, sie springt nie um.
+ */
 export const CARD_SPEEDS = [
-  { id: 'slow',   label: 'LANGSAM',        hint: 'Sehr ruhig',    deal: 760, move: 700, flip: 620 },
-  { id: 'normal', label: 'MITTEL',         hint: 'Angenehm',      deal: 500, move: 480, flip: 430 },
-  { id: 'fast',   label: 'SCHNELL',        hint: 'Zügig',         deal: 300, move: 300, flip: 280 },
-  { id: 'turbo',  label: 'EXTREM SCHNELL', hint: 'Ohne Verzug',   deal: 150, move: 170, flip: 150 }
+  { id: 'slow',   label: 'LANGSAM',        hint: 'Sehr ruhig',    deal: 760, move: 700, flip: 900 },
+  { id: 'normal', label: 'MITTEL',         hint: 'Angenehm',      deal: 500, move: 480, flip: 700 },
+  { id: 'fast',   label: 'SCHNELL',        hint: 'Zügig',         deal: 300, move: 300, flip: 480 },
+  { id: 'turbo',  label: 'EXTREM SCHNELL', hint: 'Ohne Verzug',   deal: 150, move: 170, flip: 300 }
 ];
+
+/** Kürzeste Drehung, die man noch als Drehung erkennt. */
+export const MIN_FLIP_MS = 300;
 
 export const DEFAULT_CARD_SPEED = 'normal';
 
@@ -113,7 +120,8 @@ export function createBlackjack(api) {
     if (!screen) return;
     const s = speed();
     screen.style.setProperty('--bj-move-ms', `${s.move}ms`);
-    screen.style.setProperty('--bj-flip-ms', `${s.flip}ms`);
+    // Auch die schnellste Stufe dreht die Karte noch sichtbar um.
+    screen.style.setProperty('--bj-flip-ms', `${Math.max(MIN_FLIP_MS, s.flip)}ms`);
     screen.dataset.speed = s.id;
   }
 
@@ -413,7 +421,8 @@ export function createBlackjack(api) {
       for (const index of [...hand.hidden]) {
         flipCardElement(hand.els[index], hand.cards[index]);
         api.sound.flip();
-        await wait(Math.max(120, speed().flip * 0.6));
+        // Erst weiter, wenn die Karte wirklich fertig gedreht ist.
+        await wait(speed().flip * 0.95);
       }
       hand.hidden.clear();
       paintHandTotal(hand);
@@ -457,7 +466,8 @@ export function createBlackjack(api) {
       api.sound.flip();
     }
     paintDealerTotal();
-    await wait(step() * 1.2);
+    // Der Dealer zieht erst weiter, wenn seine Karte fertig gedreht ist.
+    await wait(Math.max(speed().flip * 1.05, step() * 1.2));
   }
 
   /* ================================================================ */
@@ -592,11 +602,28 @@ export function createBlackjack(api) {
       !h.splitAces && h.bet <= api.available();
   };
 
+  /**
+   * Teilen ist erlaubt, wenn beide Karten denselben Blackjack-Wert haben.
+   * Entscheidend ist der Wert, nicht der Name: Bube, Dame und König zählen
+   * alle 10 und dürfen deshalb untereinander geteilt werden (K + D, B + K …).
+   */
   const canSplit = () => {
     const h = activeHand();
     return state.phase === 'playing' && h && !h.done && canSplitPair(h.cards) &&
       state.hands.length < MAX_HANDS && h.bet <= api.available();
   };
+
+  /** Warum das Teilen gerade nicht geht – als Kurzhinweis am Knopf. */
+  function splitReason(hand) {
+    if (!hand || state.phase !== 'playing' || hand.done) return '';
+    if (!canSplitPair(hand.cards)) {
+      return hand.cards.length === 2
+        ? 'Teilen geht nur bei zwei Karten mit demselben Wert.' : '';
+    }
+    if (state.hands.length >= MAX_HANDS) return `Höchstens ${MAX_HANDS} Hände gleichzeitig.`;
+    if (hand.bet > api.available()) return `Für das Teilen fehlen ${money(hand.bet - api.available())}.`;
+    return 'Hand in zwei Hände teilen.';
+  }
 
   async function hit() {
     if (!canHit()) return;
@@ -1001,8 +1028,9 @@ export function createBlackjack(api) {
     if (splitBtn) {
       splitBtn.disabled = !canSplit();
       const h = activeHand();
-      splitBtn.title = h && canSplitPair(h.cards) && state.hands.length >= MAX_HANDS
-        ? `Höchstens ${MAX_HANDS} Hände gleichzeitig.` : '';
+      // Bei einem gültigen Paar (auch Bube + Dame – es zählt der Kartenwert)
+      // soll man sehen, warum Teilen gerade nicht geht.
+      splitBtn.title = splitReason(h);
     }
     const actions = $('#bj-actions');
     if (actions) actions.classList.toggle('is-idle', state.phase !== 'playing');
@@ -1099,6 +1127,8 @@ export function createBlackjack(api) {
     /** Nur für Tests: erzwingt ein Neumischen des Schuhs. */
     __shuffle: () => shoe.reshuffle(),
     /** Nur für Tests: liefert den Kartenwert-Helfer. */
-    __value: cardValue
+    __value: cardValue,
+    /** Nur für Tests: dürfen diese beiden Ränge geteilt werden? */
+    __splitPair: (a, b) => canSplitPair([{ r: a, s: '♠' }, { r: b, s: '♥' }])
   };
 }

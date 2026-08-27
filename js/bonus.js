@@ -1,5 +1,5 @@
 /**
- * Bonus-System: drei Boni mit unterschiedlichen Zyklen.
+ * Bonus-System: ein einmaliger Willkommensbonus und vier wiederkehrende.
  *
  * Alle Zeitpunkte kommen vom Server (Supabase). Die Anzeige rechnet nur mit
  * einem einmal ermittelten Versatz zwischen Server- und Gerätezeit; ob ein
@@ -12,6 +12,15 @@ export const TZ_OFFSET_MS = 2 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export const BONUSES = [
+  {
+    id: 'starter',
+    label: 'Starter-Bonus',
+    amount: 150000,
+    blurb: 'Willkommensgeschenk für dein Konto – einmalig, danach verschwindet die Karte.',
+    /** Genau einmal pro Konto. Danach taucht der Bonus nirgends mehr auf. */
+    once: true,
+    badge: 'EINMALIG'
+  },
   {
     id: 'bailout',
     label: 'Notfallguthaben',
@@ -67,6 +76,8 @@ export function weekStart(ms) {
  * @returns {number} UTC-Zeitstempel; 0 bedeutet "sofort".
  */
 export function nextAvailableAt(kind, lastMs) {
+  // Einmal-Boni kommen nie wieder: einmal abgeholt, für immer erledigt.
+  if (bonusById(kind)?.once) return lastMs ? Number.POSITIVE_INFINITY : 0;
   // Das Notfallguthaben hat keinen Zyklus – es hängt allein am Guthaben.
   if (kind === 'bailout') return 0;
   if (!lastMs) return 0;
@@ -92,13 +103,16 @@ export function bonusStatus(last, nowMs, context = {}) {
     const readyAt = nextAvailableAt(bonus.id, lastMs);
     // "broke" heißt: exakt 0 € – bei 1 € gibt es nichts.
     const conditionMet = bonus.condition === 'broke' ? balance <= 0 : true;
+    // Ein Einmal-Bonus, der schon abgeholt wurde, ist endgültig erledigt.
+    const done = Boolean(bonus.once && lastMs > 0);
     return {
       ...bonus,
       lastMs,
       readyAt,
       conditionMet,
-      available: conditionMet && nowMs >= readyAt,
-      remainingMs: Math.max(0, readyAt - nowMs)
+      done,
+      available: !done && conditionMet && nowMs >= readyAt,
+      remainingMs: done ? 0 : Math.max(0, readyAt - nowMs)
     };
   });
 }

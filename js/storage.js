@@ -213,6 +213,7 @@ const localBackend = {
     const b = rec?.bonuses || {};
     return {
       serverNow: Date.now(),
+      starter: b.starter || 0,
       daily: b.daily || 0,
       timed: b.timed || 0,
       weekly: b.weekly || 0,
@@ -231,8 +232,11 @@ const localBackend = {
     if (!rec) throw new Error('Konto nicht gefunden.');
     rec.bonuses = rec.bonuses || {};
     const now = Date.now();
+    // Der Starter-Bonus gibt es genau einmal pro Konto.
+    if (kind === 'starter') {
+      if (rec.bonuses.starter) throw new Error('Der Starter-Bonus wurde bereits abgeholt.');
     // Das Notfallguthaben hängt nicht an der Zeit, sondern am Kontostand.
-    if (kind === 'bailout') {
+    } else if (kind === 'bailout') {
       if (Number(rec.profile.balance || 0) > 0) {
         throw new Error('Notfallguthaben gibt es nur bei genau 0 € Guthaben.');
       }
@@ -244,6 +248,7 @@ const localBackend = {
     writeUsers(users);
     return {
       balance: rec.profile.balance, serverNow: now, amount,
+      starter: rec.bonuses.starter || 0,
       daily: rec.bonuses.daily || 0, timed: rec.bonuses.timed || 0,
       weekly: rec.bonuses.weekly || 0, bailout: rec.bonuses.bailout || 0
     };
@@ -368,6 +373,7 @@ const supabaseBackend = {
     if (error) throw new Error(error.message);
     return {
       serverNow: Date.parse(data.serverNow),
+      starter: data.starter ? Date.parse(data.starter) : 0,
       daily: data.daily ? Date.parse(data.daily) : 0,
       timed: data.timed ? Date.parse(data.timed) : 0,
       weekly: data.weekly ? Date.parse(data.weekly) : 0,
@@ -384,6 +390,7 @@ const supabaseBackend = {
       balance: Number(data.balance),
       serverNow: Date.parse(data.serverNow),
       amount: Number(data.amount),
+      starter: data.starter ? Date.parse(data.starter) : 0,
       daily: data.daily ? Date.parse(data.daily) : 0,
       timed: data.timed ? Date.parse(data.timed) : 0,
       weekly: data.weekly ? Date.parse(data.weekly) : 0,
@@ -493,7 +500,7 @@ export const store = {
   },
 
   /**
-   * @param {string} kind      'bailout' | 'daily' | 'timed' | 'weekly'
+   * @param {string} kind      'starter' | 'bailout' | 'daily' | 'timed' | 'weekly'
    * @param {number} amount    Betrag (nur im lokalen Modus nötig)
    * @param {(last:number)=>number} readyAt  Zeitpunkt der nächsten Abholung (nur lokal)
    */

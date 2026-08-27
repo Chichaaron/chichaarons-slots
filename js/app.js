@@ -437,7 +437,8 @@ function applyCustomChip() {
  * Entscheiden darf über eine Abholung trotzdem nur der Server.
  */
 const bonusData = {
-  serverNow: 0, fetchedAt: 0, daily: 0, timed: 0, weekly: 0, bailout: 0, loaded: false
+  serverNow: 0, fetchedAt: 0,
+  starter: 0, daily: 0, timed: 0, weekly: 0, bailout: 0, loaded: false
 };
 let bonusBusy = false;
 
@@ -448,6 +449,7 @@ function applyBonusState(data) {
   if (!data) return;
   bonusData.serverNow = data.serverNow || Date.now();
   bonusData.fetchedAt = Date.now();
+  bonusData.starter = data.starter || 0;
   bonusData.daily = data.daily || 0;
   bonusData.timed = data.timed || 0;
   bonusData.weekly = data.weekly || 0;
@@ -478,15 +480,24 @@ function updateBonusDot() {
   dot.hidden = !ready;
 }
 
-/** Baut bzw. aktualisiert die drei Bonuskarten im Shop. */
+/**
+ * Baut bzw. aktualisiert die Bonuskarten im Shop.
+ *
+ * Einmal-Boni verschwinden nach dem Abholen vollständig – keine graue Karte,
+ * kein "bereits abgeholt", die Karte ist einfach nicht mehr da. Ändert sich
+ * dadurch die Zusammenstellung, wird das Feld neu aufgebaut.
+ */
 function renderBonusCards() {
   const host = $('#bonus-grid');
   if (!host || !state.profile) return;
 
-  // Karten einmal anlegen, danach nur noch die Werte auffrischen
-  if (host.children.length !== BONUSES.length) {
+  const visible = bonusList().filter((b) => !b.done);
+  const key = visible.map((b) => b.id).join('|');
+
+  if (host.dataset.key !== key) {
+    host.dataset.key = key;
     host.innerHTML = '';
-    for (const bonus of BONUSES) {
+    for (const bonus of visible) {
       const card = document.createElement('article');
       card.className = 'bonus-card';
       card.dataset.bonus = bonus.id;
@@ -494,7 +505,8 @@ function renderBonusCards() {
         <div class="bonus-head">
           <span class="bonus-coin" aria-hidden="true">€</span>
           <div>
-            <h3 class="bonus-title">${bonus.label}</h3>
+            <h3 class="bonus-title">${bonus.label}${
+              bonus.badge ? `<span class="bonus-badge">${bonus.badge}</span>` : ''}</h3>
             <strong class="bonus-amount">${money(bonus.amount)}</strong>
           </div>
         </div>
@@ -502,12 +514,13 @@ function renderBonusCards() {
         <p class="bonus-timer"></p>
         <button class="btn btn-gold" type="button">ABHOLEN</button>`;
       if (bonus.condition === 'broke') card.classList.add('bonus-card-bailout');
+      if (bonus.once) card.classList.add('bonus-card-once');
       card.querySelector('button').onclick = () => claimBonus(bonus.id);
       host.appendChild(card);
     }
   }
 
-  for (const status of bonusList()) {
+  for (const status of visible) {
     const card = host.querySelector(`[data-bonus="${status.id}"]`);
     if (!card) continue;
     const button = card.querySelector('button');
@@ -1366,6 +1379,7 @@ window.__grandVert = {
   wheel: () => state.wheel?.debugState(),
   mines: () => state.mines?.debug(),
   blackjack: () => state.blackjack?.debug(),
+  blackjackGame: () => state.blackjack,
   crash: () => state.crash?.debug(),
   crashGame: () => state.crash,
   plinko: () => state.plinko?.debug(),

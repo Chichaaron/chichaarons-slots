@@ -172,9 +172,22 @@ export function createCardElement(card, faceDown = false) {
   return el;
 }
 
-/** Deckt ein Kartenelement auf und setzt die Beschriftung passend. */
+/**
+ * Deckt ein Kartenelement auf.
+ *
+ * Die eigentliche Drehung macht CSS: `.bj-card-inner` fährt von 180° auf 0°,
+ * beide Seiten haben `backface-visibility: hidden`. Zusätzlich bekommt die
+ * Karte für die Dauer der Drehung die Klasse `is-flipping` – dadurch hebt sie
+ * sich kurz an und ein feiner Lichtstreifen wandert über sie hinweg. Das
+ * Kartenbild selbst ändert sich nie: die Vorderseite steckt von Anfang an im
+ * Element und war nur weggedreht.
+ */
 export function flipCardElement(el, card) {
   if (!el) return;
+  el.classList.remove('is-flipping');
+  void el.offsetWidth;                       // Animation sicher neu starten
+  el.classList.add('is-flipping');
   el.classList.remove('is-down');
   if (card) el.setAttribute('aria-label', cardLabel(card));
+  el.addEventListener('animationend', () => el.classList.remove('is-flipping'), { once: true });
 }
